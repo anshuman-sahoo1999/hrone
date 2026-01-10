@@ -1,0 +1,254 @@
+:root {
+    --primary-green: #198754;
+    --primary-dark: #146c43;
+    --accent-light: #e8f5e9;
+    --text-dark: #343a40;
+}
+
+body {
+    font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+    background-color: #f0f2f5;
+    color: var(--text-dark);
+}
+
+/* Login */
+#login-section {
+    background: linear-gradient(135deg, #198754 0%, #0d4429 100%);
+}
+
+.login-card {
+    width: 400px;
+    border: none;
+    border-top: 6px solid var(--accent-light);
+    border-radius: 12px;
+    background: rgba(255, 255, 255, 0.95);
+    backdrop-filter: blur(10px);
+}
+
+/* Cards & Calendar */
+.card {
+    border: none;
+    border-radius: 10px;
+    transition: transform 0.2s, box-shadow 0.2s;
+}
+
+.card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 5px 15px rgba(0, 0, 0, 0.08);
+}
+
+/* Calendar Specifics */
+.calendar-grid {
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+    gap: 5px;
+    text-align: center;
+}
+
+.calendar-day-header {
+    font-size: 0.75rem;
+    font-weight: bold;
+    color: #6c757d;
+    padding-bottom: 5px;
+}
+
+.calendar-day {
+    padding: 8px 0;
+    border-radius: 5px;
+    cursor: pointer;
+    font-size: 0.9rem;
+    background-color: #fff;
+    border: 1px solid #eee;
+    transition: all 0.2s;
+}
+
+.calendar-day:hover {
+    background-color: var(--accent-light);
+    border-color: var(--primary-green);
+}
+
+.calendar-day.active {
+    background-color: var(--primary-green);
+    color: white;
+    border-color: var(--primary-green);
+    font-weight: bold;
+}
+
+.calendar-day.empty {
+    background-color: transparent;
+    border: none;
+    cursor: default;
+}
+
+/* Kiosk Pulse */
+.video-container {
+    box-shadow: 0 0 30px rgba(40, 167, 69, 0.3);
+    animation: pulse-border 2s infinite;
+}
+
+@keyframes pulse-border {
+    0% {
+        border-color: rgba(40, 167, 69, 0.4);
+        box-shadow: 0 0 10px rgba(40, 167, 69, 0.2);
+    }
+
+    50% {
+        border-color: rgba(40, 167, 69, 1);
+        box-shadow: 0 0 30px rgba(40, 167, 69, 0.6);
+    }
+
+    100% {
+        border-color: rgba(40, 167, 69, 0.4);
+        box-shadow: 0 0 10px rgba(40, 167, 69, 0.2);
+    }
+}
+
+/* Typewriter */
+#typewriter-greeting {
+    font-family: 'Courier New', monospace;
+    color: var(--primary-dark);
+    border-right: 3px solid var(--primary-green);
+    white-space: nowrap;
+    overflow: hidden;
+    padding-right: 5px;
+    animation: blink 0.8s step-end infinite;
+}
+
+@keyframes blink {
+    50% {
+        border-color: transparent;
+    }
+}
+
+/* Scrollbar */
+::-webkit-scrollbar {
+    width: 8px;
+}
+
+::-webkit-scrollbar-track {
+    background: #f1f1f1;
+}
+
+::-webkit-scrollbar-thumb {
+    background: #bbb;
+    border-radius: 4px;
+}
+
+/* --- LUNCH CARD STYLES --- */
+.bg-gradient-lunch {
+    background: linear-gradient(135deg, #ff9966 0%, #ff5e62 100%);
+}
+
+.icon-box {
+    width: 40px;
+    height: 40px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.fw-500 {
+    font-weight: 500;
+}
+
+/* Status Badges */
+.badge-lunch-active {
+    background-color: #fff3cd;
+    color: #856404;
+    border: 1px solid #ffeeba;
+    padding: 5px 10px;
+    border-radius: 12px;
+}
+
+.badge-lunch-done {
+    background-color: #d1e7dd;
+    color: #0f5132;
+    border: 1px solid #badbcc;
+    padding: 5px 10px;
+    border-radius: 12px;
+}
+
+.badge-lunch-long {
+    background-color: #f8d7da;
+    color: #842029;
+    border: 1px solid #f5c2c7;
+    padding: 5px 10px;
+    border-radius: 12px;
+}
+
+/* --- PROFESSIONAL CORPORATE LOGIN --- */
+.login-bg {
+    background-color: #0f172a;
+    /* Deep Enterprise Navy */
+    background-image: radial-gradient(at 0% 0%, #1e293b 0px, transparent 50%),
+        radial-gradient(at 100% 100%, #1e293b 0px, transparent 50%);
+    position: relative;
+}
+
+.corporate-card {
+    background: #ffffff;
+    border-radius: 12px;
+    box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+    border-top: 5px solid #10b981;
+    /* Success Green Brand Line */
+    width: 100%;
+    max-width: 420px;
+}
+
+.brand-title {
+    color: #0f172a;
+    font-family: 'Segoe UI', sans-serif;
+    font-weight: 700;
+    letter-spacing: -0.5px;
+}
+
+.brand-subtitle {
+    color: #64748b;
+    font-size: 0.85rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+}
+
+.form-control:focus {
+    border-color: #10b981;
+    box-shadow: 0 0 0 4px rgba(16, 185, 129, 0.1);
+}
+
+.logo-container {
+    height: 80px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-bottom: 1.5rem;
+}
+
+.logo-img {
+    max-height: 150%;
+    max-width: 150%;
+    object-fit: contain;
+}
+
+/* --- MOBILE OPTIMIZATIONS --- */
+@media (max-width: 768px) {
+
+    /* Make table text slightly smaller on phones for better fit */
+    .table {
+        font-size: 0.85rem;
+    }
+
+    /* Adjust Login Card padding for small screens */
+    .corporate-card {
+        padding: 1.5rem !important;
+    }
+
+    /* Make KPI numbers slightly smaller to prevent wrapping */
+    h3 {
+        font-size: 1.5rem;
+    }
+
+    /* Hide the 'Subhalaxmi Group' subtitle on very small screens to save space */
+    .brand-subtitle {
+        font-size: 0.75rem;
+    }
+}

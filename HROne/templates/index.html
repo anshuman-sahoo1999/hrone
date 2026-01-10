@@ -1,0 +1,472 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>HROne | Subhalaxmi Group of Companies</title>
+    <link rel="icon" type="image/png" href="{{ url_for('static', filename='images/logo.png') }}">
+
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.canvasjs.com/canvasjs.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/xlsx-js-style@1.2.0/dist/xlsx.bundle.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.29/jspdf.plugin.autotable.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@vladmandic/face-api/dist/face-api.js"></script>
+</head>
+
+<body class="bg-light d-flex flex-column min-vh-100">
+
+    <section id="login-section" class="vh-100 d-flex align-items-center justify-content-center login-bg">
+        <div class="card corporate-card p-4 p-md-5 animate-fade-in">
+            <div class="text-center mb-4">
+                <div class="logo-container">
+                    <img src="{{ url_for('static', filename='images/logo.png') }}" alt="Subhalaxmi Group"
+                        class="logo-img">
+                </div>
+
+                <h3 class="brand-title mb-1">HROne</h3>
+                <p class="brand-subtitle mb-3">Professional HR Suite</p>
+                <div class="d-flex justify-content-center">
+                    <span class="badge bg-light text-dark border px-3 py-2 rounded-pill fw-normal">Subhalaxmi Group of
+                        Companies</span>
+                </div>
+            </div>
+
+            <form id="login-form">
+                <div class="form-floating mb-3">
+                    <input type="text" id="login-user" class="form-control" placeholder="User ID" autocomplete="off">
+                    <label for="login-user" class="text-muted"><i class="fas fa-user me-2"></i> User ID</label>
+                </div>
+                <div class="form-floating mb-4">
+                    <input type="password" id="login-pass" class="form-control" placeholder="Password">
+                    <label for="login-pass" class="text-muted"><i class="fas fa-lock me-2"></i> Password</label>
+                </div>
+                <button type="submit" class="btn btn-success w-100 py-3 fw-bold rounded-3 shadow-sm text-uppercase"
+                    style="letter-spacing: 1px;">
+                    Secure Login
+                </button>
+            </form>
+
+            <div class="text-center mt-4 pt-3 border-top">
+                <a href="#"
+                    class="text-decoration-none text-secondary small fw-bold d-inline-flex align-items-center gap-2"
+                    onclick="app.switchView('kiosk')">
+                    <i class="fas fa-qrcode fa-lg"></i> Switch to Kiosk Mode
+                </a>
+            </div>
+
+            <div class="text-center mt-3">
+                <span id="system-status-badge"
+                    class="badge bg-success-subtle text-success border border-success rounded-pill px-3">System
+                    Online</span>
+            </div>
+        </div>
+    </section>
+
+    <div id="dashboard-layout" class="d-none flex-column flex-grow-1">
+
+        <nav
+            class="navbar navbar-expand-lg navbar-light bg-white shadow-sm border-bottom border-success border-3 sticky-top">
+            <div class="container-fluid">
+                <div class="d-flex align-items-center">
+                    <button class="btn btn-light d-lg-none me-2" type="button" data-bs-toggle="offcanvas"
+                        data-bs-target="#mobileMenu"><i class="fas fa-bars fa-lg"></i></button>
+                    <a class="navbar-brand d-flex flex-column" href="#">
+                        <span class="text-success fw-bold h5 m-0">Subhalaxmi Group of Companies</span>
+                        <small class="text-muted" style="font-size: 0.7rem;">New Industrial Estate, Jagatpur</small>
+                    </a>
+                </div>
+
+                <div class="d-flex align-items-center gap-3">
+                    <span id="network-status" class="badge bg-success d-none d-md-inline-block"><i
+                            class="fas fa-wifi"></i> Online</span>
+
+                    <div class="d-none d-md-flex align-items-center gap-3">
+                        <span id="current-date" class="badge bg-light text-dark border px-3 py-2">Loading...</span>
+                        <div id="weather-widget"
+                            class="d-flex align-items-center gap-2 px-3 py-1 bg-light rounded-pill border">
+                            <i class="fas fa-cloud-sun text-warning"></i> <span id="weather-temp"
+                                class="fw-bold small">--°C</span>
+                            <span class="text-muted">|</span> <small class="text-muted">AQI:</small> <span
+                                id="weather-aqi" class="fw-bold small text-success">--</span>
+                        </div>
+                    </div>
+
+                    <div id="admin-controls" class="d-none d-lg-flex gap-2 border-end pe-3 me-2">
+                        <button class="btn btn-sm btn-primary fw-bold" onclick="app.openEmployeeModal()"><i
+                                class="fas fa-user-plus"></i> Staff</button>
+                        <button class="btn btn-sm btn-dark fw-bold" onclick="app.openStaffDirectory()"><i
+                                class="fas fa-address-book"></i> Directory</button>
+                        <button class="btn btn-sm btn-secondary fw-bold" onclick="app.openUnitModal()"><i
+                                class="fas fa-building"></i> Units</button>
+                    </div>
+
+                    <div id="typewriter-greeting" class="fw-bold text-dark d-none d-xl-block"></div>
+                    <button class="btn btn-outline-danger btn-sm" onclick="app.logout()">Logout</button>
+                </div>
+            </div>
+        </nav>
+
+        <div class="offcanvas offcanvas-start" tabindex="-1" id="mobileMenu">
+            <div class="offcanvas-header bg-success text-white">
+                <h5 class="offcanvas-title fw-bold">HROne Menu</h5><button type="button"
+                    class="btn-close btn-close-white" data-bs-dismiss="offcanvas"></button>
+            </div>
+            <div class="offcanvas-body">
+                <div class="d-grid gap-2">
+                    <div class="p-2 bg-light border rounded text-center fw-bold mb-3" id="mob-current-date">Loading...
+                    </div>
+                    <div class="text-muted small fw-bold mb-1">MANAGEMENT</div>
+                    <button class="btn btn-outline-primary text-start"
+                        onclick="app.openEmployeeModal(); bootstrap.Offcanvas.getInstance(document.getElementById('mobileMenu')).hide()"><i
+                            class="fas fa-user-plus me-2"></i> Add Staff</button>
+                    <button class="btn btn-outline-dark text-start"
+                        onclick="app.openStaffDirectory(); bootstrap.Offcanvas.getInstance(document.getElementById('mobileMenu')).hide()"><i
+                            class="fas fa-address-book me-2"></i> Staff Directory</button>
+                    <button class="btn btn-outline-secondary text-start"
+                        onclick="app.openUnitModal(); bootstrap.Offcanvas.getInstance(document.getElementById('mobileMenu')).hide()"><i
+                            class="fas fa-building me-2"></i> Manage Units</button>
+                    <hr>
+                    <div class="text-muted small fw-bold mb-1">SYSTEM</div>
+                    <div class="d-flex justify-content-between align-items-center p-2 border rounded">
+                        <span>Weather</span><strong id="mob-weather">--°C</strong>
+                    </div>
+                    <div class="d-flex justify-content-between align-items-center p-2 border rounded"><span>AQI
+                            Index</span><strong id="mob-aqi" class="text-success">--</strong></div>
+                </div>
+            </div>
+        </div>
+
+        <div class="container-fluid py-4 flex-grow-1">
+
+            <div id="it-admin-view" class="role-view d-none">
+                <div class="row">
+                    <div class="col-md-4">
+                        <div class="card shadow border-danger mb-4">
+                            <div class="card-header bg-danger text-white"><i class="fas fa-shield-alt"></i> Control
+                                Center</div>
+                            <div class="card-body text-center">
+                                <h5>System Lock</h5>
+                                <div
+                                    class="form-check form-switch d-flex justify-content-center gap-2 align-items-center fs-4">
+                                    <input class="form-check-input" type="checkbox" id="system-lock-toggle">
+                                    <label class="form-check-label fs-6" id="lock-label">Active</label>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div id="admin-view" class="role-view d-none">
+
+                <div class="row mb-4 g-3">
+                    <div class="col-6 col-lg-3">
+                        <div class="card bg-success text-white shadow-sm h-100">
+                            <div class="card-body p-3">
+                                <h3><i class="fas fa-check-circle"></i> <span id="kpi-present">0</span></h3>
+                                <small>Present</small>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-6 col-lg-3">
+                        <div class="card bg-danger text-white shadow-sm h-100">
+                            <div class="card-body p-3">
+                                <h3><i class="fas fa-times-circle"></i> <span id="kpi-absent">0</span></h3>
+                                <small>Absent</small>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-6 col-lg-3">
+                        <div class="card bg-warning text-dark shadow-sm h-100">
+                            <div class="card-body p-3">
+                                <h3><i class="fas fa-clock"></i> <span id="kpi-hours">0h</span></h3><small>Avg
+                                    Duration</small>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-6 col-lg-3">
+                        <div class="card bg-primary text-white shadow-sm h-100">
+                            <div class="card-body p-3">
+                                <h3><i class="fas fa-calendar-day"></i> <span id="selected-date-display">Today</span>
+                                </h3><small>Date</small>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="row g-4 mb-4">
+                    <div class="col-lg-4">
+                        <div class="card shadow-sm h-100">
+                            <div class="card-header bg-white fw-bold d-flex justify-content-between align-items-center">
+                                <span><i class="fas fa-calendar-alt text-success"></i> Calendar</span>
+                                <button class="btn btn-sm btn-outline-secondary"
+                                    onclick="app.resetToToday()">Today</button>
+                            </div>
+                            <div class="card-body p-2">
+                                <div class="d-flex justify-content-between align-items-center mb-2 px-2">
+                                    <button class="btn btn-sm btn-light" onclick="app.changeMonth(-1)"><i
+                                            class="fas fa-chevron-left"></i></button>
+                                    <span id="calendar-month-year" class="fw-bold"></span>
+                                    <button class="btn btn-sm btn-light" onclick="app.changeMonth(1)"><i
+                                            class="fas fa-chevron-right"></i></button>
+                                </div>
+                                <div class="calendar-grid" id="calendar-grid"></div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="col-lg-8">
+                        <div class="card shadow-sm h-100">
+                            <div
+                                class="card-header bg-white d-flex justify-content-between align-items-center flex-wrap gap-2">
+                                <h5 class="m-0 text-success">Daily Logs</h5>
+                                <div>
+                                    <button class="btn btn-sm btn-outline-dark me-2"
+                                        onclick="app.openAdvancedReports()"><i class="fas fa-file-pdf"></i> Employee
+                                        Report</button>
+                                    <button class="btn btn-sm btn-success" onclick="app.exportFullExcelReport()"><i
+                                            class="fas fa-file-excel"></i> Master Excel</button>
+                                </div>
+                            </div>
+                            <div class="card-body p-0" style="height: 450px; overflow-y: auto;">
+                                <div class="table-responsive">
+                                    <table class="table table-hover table-striped mb-0 text-center align-middle">
+                                        <thead class="table-success sticky-top">
+                                            <tr>
+                                                <th>Status</th>
+                                                <th>Name</th>
+                                                <th>Unit</th>
+                                                <th>Check In/Out</th>
+                                                <th>Lunch Break</th>
+                                                <th>Work Log</th>
+                                                <th>Action</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody id="activity-log-body"></tbody>
+                                    </table>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="row g-4 mb-4">
+                    <div class="col-12">
+                        <div class="card shadow-sm border-0 overflow-hidden">
+                            <div
+                                class="card-header bg-gradient-lunch text-white d-flex align-items-center justify-content-between p-3">
+                                <div class="d-flex align-items-center gap-3">
+                                    <div class="icon-box bg-white text-warning rounded-circle p-2 shadow-sm">
+                                        <i class="fas fa-utensils fa-bounce"></i>
+                                    </div>
+                                    <h5 class="m-0 fw-bold text-dark">Lunch Time Utilization</h5>
+                                </div>
+                                <span class="badge bg-white text-dark shadow-sm">Break Monitor</span>
+                            </div>
+
+                            <div class="card-body p-0">
+                                <div class="table-responsive">
+                                    <table class="table table-hover align-middle mb-0 text-center">
+                                        <thead class="bg-light text-muted small text-uppercase">
+                                            <tr>
+                                                <th>Employee</th>
+                                                <th>Lunch Out</th>
+                                                <th>Lunch In</th>
+                                                <th>Total Duration</th>
+                                                <th>Status</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody id="lunch-log-body" class="fw-500">
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="row g-4">
+                    <div class="col-12 d-flex justify-content-end">
+                        <button class="btn btn-sm btn-outline-primary" onclick="app.loadOverallCharts()">
+                            <i class="fas fa-sync"></i> Show Overall View
+                        </button>
+                    </div>
+                    <div class="col-lg-6 mb-4">
+                        <div class="card shadow-sm h-100">
+                            <div class="card-header bg-white fw-bold">Plant-wise Average Work Status</div>
+                            <div class="card-body">
+                                <div id="plantChartContainer" style="height: 300px; width: 100%;"></div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-lg-6 mb-4">
+                        <div class="card shadow-sm h-100">
+                            <div class="card-header bg-white fw-bold">Attendance vs Productivity Efficiency</div>
+                            <div class="card-body">
+                                <div id="efficiencyChartContainer" style="height: 300px; width: 100%;"></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+
+        <footer class="bg-dark text-white pt-5 pb-4 mt-auto">
+            <div class="container text-start">
+                <h3 class="fw-bold text-success mb-2">HROne</h3>
+                <h5 class="mb-4 text-white">Subhalaxmi Group of Companies</h5>
+                <hr class="border-secondary w-100 mb-4 opacity-25">
+                <p class="mb-2 text-white-50 lead fs-6">
+                    This platform is designed by <strong class="text-white">Codentra Innovations</strong>, for the
+                    <strong class="text-white">Subhalaxmi Group of Companies</strong>.
+                </p>
+                <div class="small text-white mt-3">
+                    &copy; <span id="dynamic-year">2026</span> <strong>Subhalaxmi Pet and Plastics</strong>. All Rights
+                    Reserved.
+                </div>
+            </div>
+        </footer>
+    </div>
+
+    <div id="kiosk-view" class="d-none bg-dark vh-100 position-relative text-white overflow-hidden">
+        <button class="btn btn-outline-light btn-sm position-absolute top-0 start-0 m-3 z-1"
+            onclick="location.reload()">Exit</button>
+        <div class="position-absolute top-0 end-0 m-3 z-1">
+            <span id="kiosk-network-status" class="badge bg-success"><i class="fas fa-wifi"></i> Online</span>
+        </div>
+        <div class="container h-100 d-flex flex-column align-items-center justify-content-center">
+            <h1 class="mb-2">Face Attendance</h1>
+            <p class="text-muted" id="kiosk-status">Initializing...</p>
+            <div class="video-container position-relative"
+                style="width: 100%; max-width: 640px; aspect-ratio: 4/3; background: #000; border: 4px solid #28a745; border-radius: 10px;">
+                <video id="kiosk-video" class="w-100 h-100 object-fit-cover" autoplay muted></video>
+                <canvas id="kiosk-canvas" class="position-absolute top-0 start-0 w-100 h-100"></canvas>
+            </div>
+            <div id="scan-message" class="mt-4 alert alert-dark text-center w-75">Waiting for face...</div>
+        </div>
+    </div>
+
+    <div class="modal fade" id="reportsModal" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header bg-dark text-white">
+                    <h5 class="modal-title">Employee Report</h5><button class="btn-close btn-close-white"
+                        data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body"><label class="mb-2">Select Employee:</label><select id="report-emp-select"
+                        class="form-select mb-4"></select>
+                    <div class="row">
+                        <div class="col-6"><button class="btn btn-danger w-100" onclick="app.generateEmployeePDF()"><i
+                                    class="fas fa-file-pdf"></i> Download PDF</button></div>
+                        <div class="col-6"><button class="btn btn-success w-100"
+                                onclick="app.generateEmployeeExcel()"><i class="fas fa-file-excel"></i> Download
+                                Excel</button></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="modal fade" id="workLogModal" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header bg-primary text-white">
+                    <h5 class="modal-title">Daily Work Log</h5><button class="btn-close btn-close-white"
+                        data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body"><input type="hidden" id="logAttId">
+                    <div class="mb-3"><label class="small fw-bold text-muted">EMPLOYEE</label><input type="text"
+                            id="logEmpName" class="form-control" disabled></div>
+                    <div class="mb-3"><label class="small fw-bold text-muted">JOB ASSIGNED / COMPLETED</label><textarea
+                            id="logText" class="form-control" rows="4"></textarea></div>
+                </div>
+                <div class="modal-footer"><button onclick="app.saveWorkLog()" class="btn btn-primary w-100">Save
+                        Log</button></div>
+            </div>
+        </div>
+    </div>
+    <div class="modal fade" id="staffDirectoryModal" tabindex="-1">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header bg-dark text-white">
+                    <h5 class="modal-title">Staff Directory</h5><button class="btn-close btn-close-white"
+                        data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="input-group mb-3"><span class="input-group-text"><i
+                                class="fas fa-search"></i></span><input type="text" class="form-control"
+                            placeholder="Search..." onkeyup="app.filterStaff(this.value)"></div>
+                    <div style="max-height: 400px; overflow-y: auto;">
+                        <table class="table table-hover">
+                            <tbody id="staff-list-body"></tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="modal fade" id="addEmployeeModal" tabindex="-1">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header bg-success text-white">
+                    <h5 class="modal-title">Registration</h5><button class="btn-close btn-close-white"
+                        data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="row">
+                        <div class="col-md-6"><input type="text" id="reg-id" class="form-control mb-2"
+                                placeholder="ID"><input type="text" id="reg-name" class="form-control mb-2"
+                                placeholder="Name"><select id="reg-unit" class="form-select mb-2"></select></div>
+                        <div class="col-md-6 text-center">
+                            <div class="bg-dark mx-auto mb-2" style="width:200px;height:150px;"><video id="reg-video"
+                                    width="200" height="150" autoplay muted></video></div><button
+                                class="btn btn-primary btn-sm" onclick="app.captureFace()">Capture</button>
+                            <div id="reg-face-status" class="small text-danger">No Data</div>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer"><button class="btn btn-primary" onclick="app.saveEmployee()">Save</button>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="modal fade" id="unitModal" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header bg-secondary text-white">
+                    <h5 class="modal-title">Units</h5><button class="btn-close btn-close-white"
+                        data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="input-group mb-3"><input type="text" id="new-unit-name" class="form-control"
+                            placeholder="Unit Name"><button class="btn btn-success" onclick="app.addUnit()">Add</button>
+                    </div>
+                    <ul class="list-group" id="unit-list"></ul>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="modal fade" id="performanceModal" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header bg-info text-white">
+                    <h5 class="modal-title">Performance</h5><button class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <h4 id="perf-name"></h4><canvas id="perfChart"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="{{ url_for('static', filename='js/script.js') }}?v=11"></script>
+</body>
+
+</html>
