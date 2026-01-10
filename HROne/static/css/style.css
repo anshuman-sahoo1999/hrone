@@ -251,4 +251,45 @@ body {
     .brand-subtitle {
         font-size: 0.75rem;
     }
+
+}
+/* --- MOBILE RESPONSIVENESS FIXES --- */
+@media (max-width: 576px) {
+    /* 1. Fix Header Alignment */
+    .navbar-brand {
+        max-width: 65%; /* Prevent text from pushing buttons off screen */
+    }
+    
+    .navbar-brand .h5 {
+        font-size: 1rem !important; /* Shrink company name */
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis; /* Add "..." if too long */
+        display: block;
+    }
+    
+    .navbar-brand small {
+        display: none; /* Hide address on mobile to save space */
+    }
+
+    /* 2. Fix Calendar Sizing */
+    .calendar-day, .calendar-day-header {
+        font-size: 0.8rem; /* Smaller numbers */
+        height: 35px; /* Smaller boxes */
+        line-height: 35px;
+    }
+    
+    .card-header {
+        padding: 0.5rem 1rem; /* Compact header */
+    }
+
+    /* 3. Compact KPI Cards */
+    .kpi-card h3 {
+        font-size: 1.5rem !important;
+    }
+
+    /* 4. Logout Button - Icon Only on Mobile */
+    .btn-logout-text {
+        display: none;
+    }
 }
