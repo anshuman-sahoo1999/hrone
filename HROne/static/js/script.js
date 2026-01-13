@@ -422,11 +422,10 @@ const app = {
     exportFilteredReport: async () => {
         alert("Exporting current filter view...");
         // In a real production app, you would pass the 'filtered' array to an excel generator
-        // app.generateExcelFromData(filteredData);
     },
 
     // ========================================================
-    // 6. EMPLOYEE REGISTRATION (CAMERA & SAVE FIXES)
+    // 6. EMPLOYEE REGISTRATION (CAMERA & PREVIEW UI FIXES)
     // ========================================================
     
     // 1. Safe Modal Opener
@@ -437,22 +436,29 @@ const app = {
             unitSelect.innerHTML = data.map(u => `<option value="${u.name}">${u.name}</option>`).join('');
         }
         
+        // --- RESET UI FOR NEW ENTRY ---
+        document.getElementById('reg-video').classList.remove('d-none');       // Show Video
+        document.getElementById('reg-photo-preview').classList.add('d-none');  // Hide Image
+        document.getElementById('btn-capture').classList.remove('d-none');     // Show Capture Btn
+        document.getElementById('btn-retake').classList.add('d-none');         // Hide Retake Btn
+        document.getElementById('reg-face-status').innerText = "Initializing Camera...";
+        document.getElementById('reg-face-status').className = "small text-muted fw-bold";
+        
+        // Clear Data
+        app.biometricDescriptor = null;
+        app.currentPhoto = null;
+
         const modalEl = document.getElementById('addEmployeeModal');
         const modal = new bootstrap.Modal(modalEl);
         modal.show();
         
-        // Start camera ONLY when modal is fully visible (prevents black screen)
-        modalEl.addEventListener('shown.bs.modal', () => {
-            app.startRegCamera();
-        });
-        
+        // Start camera ONLY when modal is fully visible
+        modalEl.addEventListener('shown.bs.modal', () => { app.startRegCamera(); });
         // Kill camera when modal closes
-        modalEl.addEventListener('hidden.bs.modal', () => {
-            app.stopRegCamera();
-        });
+        modalEl.addEventListener('hidden.bs.modal', () => { app.stopRegCamera(); });
     },
 
-    // 2. Start Camera (Stops Kiosk first, Checks HTTPS)
+    // 2. Start Camera
     startRegCamera: async () => {
         const video = document.getElementById('reg-video');
         const status = document.getElementById('reg-face-status');
@@ -486,8 +492,12 @@ const app = {
         }
     },
 
+    // 4. Capture (Shows Preview)
     captureFace: async () => {
         const vid = document.getElementById('reg-video');
+        const preview = document.getElementById('reg-photo-preview');
+        const status = document.getElementById('reg-face-status');
+
         if (!app.faceModelsLoaded) return alert("Loading AI Models... Please wait.");
         if (!vid.srcObject) return alert("Camera not active.");
 
@@ -500,9 +510,41 @@ const app = {
             canvas.getContext('2d').drawImage(vid, 0, 0, 300, 225);
             app.currentPhoto = canvas.toDataURL('image/jpeg', 0.8);
 
-            document.getElementById('reg-face-status').innerText = "Face & Photo Captured!";
-            document.getElementById('reg-face-status').className = "text-success fw-bold small mt-1";
-        } else alert("No face detected. Please look at the camera.");
+            // UI SWITCH
+            preview.src = app.currentPhoto; 
+            vid.classList.add('d-none');          
+            preview.classList.remove('d-none');   
+            document.getElementById('btn-capture').classList.add('d-none');  
+            document.getElementById('btn-retake').classList.remove('d-none');
+
+            status.innerText = "Photo Captured & Verified!";
+            status.className = "text-success fw-bold small mt-1";
+            
+            app.stopRegCamera(); // Stop video to save resources
+
+        } else {
+            status.innerText = "No Face Detected. Try Again.";
+            status.className = "text-danger fw-bold small mt-1";
+        }
+    },
+
+    // 5. Retake (Restarts Camera)
+    retakePhoto: async () => {
+        const vid = document.getElementById('reg-video');
+        const preview = document.getElementById('reg-photo-preview');
+        
+        preview.classList.add('d-none');      
+        vid.classList.remove('d-none');       
+        document.getElementById('btn-retake').classList.add('d-none');
+        document.getElementById('btn-capture').classList.remove('d-none');
+        
+        document.getElementById('reg-face-status').innerText = "Camera Active";
+        document.getElementById('reg-face-status').className = "small text-success fw-bold";
+
+        app.biometricDescriptor = null;
+        app.currentPhoto = null;
+
+        await app.startRegCamera();
     },
 
     saveEmployee: async () => {
@@ -539,7 +581,7 @@ const app = {
             alert("Staff Registered Successfully!");
             app.loadFaceData();
             bootstrap.Modal.getInstance(document.getElementById('addEmployeeModal')).hide();
-            // Clear specific fields
+            // Clear fields
             document.getElementById('reg-name').value = ""; 
             document.getElementById('reg-id').value = "";
         } else alert(error.message);
