@@ -443,13 +443,20 @@
                         </div>
 
                         <div class="col-md-5 text-center border-start">
-                            <label class="small text-muted fw-bold mb-2">Live Face Capture</label>
-                            <div class="bg-dark mx-auto rounded mb-2 overflow-hidden" style="width:220px; height:165px; border:2px solid #ddd;">
+                            <div class="bg-dark mx-auto rounded mb-2 overflow-hidden position-relative" style="width:220px; height:165px; border:2px solid #ddd;">
                                 <video id="reg-video" width="220" height="165" autoplay muted style="object-fit:cover;"></video>
+                                
+                                <img id="reg-photo-preview" class="d-none w-100 h-100 object-fit-cover" src="">
                             </div>
-                            <button class="btn btn-outline-primary btn-sm w-75 mb-2" onclick="app.captureFace()">
+
+                            <button id="btn-capture" class="btn btn-outline-primary btn-sm w-75 mb-2" onclick="app.captureFace()">
                                 <i class="fas fa-camera"></i> Capture Face
                             </button>
+                            
+                            <button id="btn-retake" class="btn btn-outline-warning btn-sm w-75 mb-2 d-none" onclick="app.retakePhoto()">
+                                <i class="fas fa-sync"></i> Retake Photo
+                            </button>
+
                             <div id="reg-face-status" class="small text-danger fw-bold">No Data Captured</div>
                         </div>
                     </div>
@@ -495,3 +502,4 @@
     <script src="{{ url_for('static', filename='js/script.js') }}?v=14"></script>
 </body>
 </html>
+
