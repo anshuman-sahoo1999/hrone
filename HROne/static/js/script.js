@@ -285,8 +285,9 @@ const app = {
             attData.forEach(row => {
                 // Find employee details for Designation/Shift display
                 const emp = allEmps.find(e => e.id === row.emp_id);
-                const desig = emp ? emp.designation : '-';
-                const shift = emp ? emp.shift : '-';
+                // Handle Default/Null values
+                const desig = emp && emp.designation ? emp.designation : '-';
+                const shift = emp && emp.shift ? emp.shift : '-';
 
                 let duration = "--";
                 if (row.check_in && row.check_out) {
@@ -334,9 +335,13 @@ const app = {
     loadDesignations: async () => {
         const { data } = await supabaseClient.from('employees').select('designation');
         if(data) {
-            const unique = [...new Set(data.map(i => i.designation).filter(Boolean))];
+            // Get unique designations, remove nulls/empty
+            const unique = [...new Set(data.map(i => i.designation).filter(d => d && d.trim() !== ""))];
             const sel = document.getElementById('filter-designation');
-            if(sel) sel.innerHTML = `<option value="All">All Designations</option>` + unique.map(d => `<option value="${d}">${d}</option>`).join('');
+            if(sel) {
+                // Keep "All" option + dynamically added ones
+                sel.innerHTML = `<option value="All">All Designations</option>` + unique.map(d => `<option value="${d}">${d}</option>`).join('');
+            }
         }
     },
 
@@ -345,6 +350,7 @@ const app = {
         const desig = document.getElementById('filter-designation').value;
         const monthMode = document.getElementById('filter-month').value;
 
+        // 1. Calculate Date Range
         const now = new Date();
         let startDate, endDate;
         
@@ -356,49 +362,134 @@ const app = {
             endDate = new Date(now.getFullYear(), now.getMonth(), 0).toISOString().split('T')[0];
         }
 
+        // 2. Fetch Data
         const { data: logs } = await supabaseClient.from('attendance').select('*').gte('date', startDate).lte('date', endDate);
         const { data: emps } = await supabaseClient.from('employees').select('*');
 
-        if (!logs || !emps) return;
+        if (!logs || !emps) {
+            document.getElementById('activity-log-body').innerHTML = '<tr><td colspan="7">No data found.</td></tr>';
+            return;
+        }
 
+        // 3. Smart Filtering (Handles Nulls as Defaults)
         const filtered = logs.filter(log => {
             const employee = emps.find(e => e.id === log.emp_id);
             if (!employee) return false;
-            const matchesShift = (shift === 'All') || (employee.shift === shift);
-            const matchesDesig = (desig === 'All') || (employee.designation === desig);
-            log.empDetails = employee; 
+
+            // HANDLE NULLS: Treat null shift as 'Shift-1' and null designation as 'Staff'
+            const empShift = employee.shift || 'Shift-1';
+            const empDesig = employee.designation || 'Staff';
+
+            const matchesShift = (shift === 'All') || (empShift === shift);
+            const matchesDesig = (desig === 'All') || (empDesig === desig);
+            
+            // Attach data for rendering
+            log.empDetails = { ...employee, shift: empShift, designation: empDesig };
+            
             return matchesShift && matchesDesig;
         });
 
-        // Re-render Table with Filtered Data (Same logic as refreshDashboardData but using 'filtered')
+        // 4. Render Filtered Data
         const tbody = document.getElementById('activity-log-body');
         tbody.innerHTML = '';
         
+        if (filtered.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="7" class="text-muted py-3">No records match these filters.</td></tr>';
+            return;
+        }
+
         filtered.forEach(row => {
+            const taskBtn = row.work_log ? 'btn-success' : 'btn-outline-primary';
+            const taskTxt = row.work_log ? 'Edit' : 'Add';
+            const safeLog = (row.work_log || '').replace(/'/g, "\\'");
+
             tbody.innerHTML += `
                 <tr>
                     <td><span class='badge bg-${row.check_out ? 'success' : 'warning'}'>${row.check_out ? 'Done' : 'Active'}</span></td>
-                    <td><div class="fw-bold">${row.name}</div><div class="small text-muted">${row.empDetails.designation || '-'}</div></td>
+                    <td>
+                        <div class="fw-bold">${row.name}</div>
+                        <div class="small text-muted">${row.empDetails.designation}</div>
+                    </td>
                     <td>${row.unit}</td>
                     <td><small>In: ${row.check_in}<br>Out: ${row.check_out||'-'}</small></td>
-                    <td><span class="badge bg-secondary">${row.empDetails.shift || '-'}</span></td>
-                    <td>...</td>
-                    <td>...</td>
+                    <td><span class="badge bg-secondary">${row.empDetails.shift}</span></td>
+                    <td><button class="btn btn-sm ${taskBtn}" onclick="app.openWorkLog('${row.id}', '${row.name}', '${safeLog}')">${taskTxt}</button></td>
+                    <td><button class="btn btn-sm btn-outline-secondary" onclick="app.showPerformance('${row.emp_id}')"><i class="fas fa-chart-bar"></i></button></td>
                 </tr>`;
         });
     },
 
     exportFilteredReport: async () => {
-        alert("Report generation based on current filters initiated...");
-        // Logic similar to 'exportFullExcelReport' but utilizing the filtered dataset
+        alert("Exporting current filter view...");
+        // In a real production app, you would pass the 'filtered' array to an excel generator
+        // app.generateExcelFromData(filteredData);
     },
 
     // ========================================================
-    // 6. EMPLOYEE REGISTRATION (NEW FIELDS)
+    // 6. EMPLOYEE REGISTRATION (CAMERA & SAVE FIXES)
     // ========================================================
+    
+    // 1. Safe Modal Opener
+    openEmployeeModal: async () => {
+        const { data } = await supabaseClient.from('units').select('*');
+        const unitSelect = document.getElementById('reg-unit');
+        if(unitSelect) {
+            unitSelect.innerHTML = data.map(u => `<option value="${u.name}">${u.name}</option>`).join('');
+        }
+        
+        const modalEl = document.getElementById('addEmployeeModal');
+        const modal = new bootstrap.Modal(modalEl);
+        modal.show();
+        
+        // Start camera ONLY when modal is fully visible (prevents black screen)
+        modalEl.addEventListener('shown.bs.modal', () => {
+            app.startRegCamera();
+        });
+        
+        // Kill camera when modal closes
+        modalEl.addEventListener('hidden.bs.modal', () => {
+            app.stopRegCamera();
+        });
+    },
+
+    // 2. Start Camera (Stops Kiosk first, Checks HTTPS)
+    startRegCamera: async () => {
+        const video = document.getElementById('reg-video');
+        const status = document.getElementById('reg-face-status');
+        
+        // Stop Kiosk stream if running
+        if (document.getElementById('kiosk-video').srcObject) {
+            const tracks = document.getElementById('kiosk-video').srcObject.getTracks();
+            tracks.forEach(track => track.stop());
+        }
+
+        try {
+            const stream = await navigator.mediaDevices.getUserMedia({ video: { width: 320, height: 240 } });
+            video.srcObject = stream;
+            status.innerText = "Camera Active";
+            status.className = "small text-success fw-bold";
+        } catch (err) {
+            console.error("Camera Error:", err);
+            status.innerText = "Camera Failed: HTTPS Required";
+            status.className = "small text-danger fw-bold";
+            alert("Camera Error:\nBrowsers block camera access on insecure (HTTP) connections.\n\nUse localhost or HTTPS.");
+        }
+    },
+
+    // 3. Stop Camera
+    stopRegCamera: () => {
+        const video = document.getElementById('reg-video');
+        if (video && video.srcObject) {
+            const tracks = video.srcObject.getTracks();
+            tracks.forEach(track => track.stop());
+            video.srcObject = null;
+        }
+    },
+
     captureFace: async () => {
         const vid = document.getElementById('reg-video');
-        if (!app.faceModelsLoaded) return alert("Loading AI...");
+        if (!app.faceModelsLoaded) return alert("Loading AI Models... Please wait.");
+        if (!vid.srcObject) return alert("Camera not active.");
 
         const det = await faceapi.detectSingleFace(vid).withFaceLandmarks().withFaceDescriptor();
 
@@ -411,10 +502,11 @@ const app = {
 
             document.getElementById('reg-face-status').innerText = "Face & Photo Captured!";
             document.getElementById('reg-face-status').className = "text-success fw-bold small mt-1";
-        } else alert("No face detected.");
+        } else alert("No face detected. Please look at the camera.");
     },
 
     saveEmployee: async () => {
+        // Collect Data
         const id = document.getElementById('reg-id').value;
         const name = document.getElementById('reg-name').value;
         const desig = document.getElementById('reg-designation').value;
@@ -424,16 +516,19 @@ const app = {
         const address = document.getElementById('reg-address').value;
         const shift = document.getElementById('reg-shift').value;
 
+        // Validations
         if (!id || !name || !unit || !mobile) return alert("Fill required fields: ID, Name, Mobile, Unit.");
         if (!app.biometricDescriptor) return alert("Biometric required! Click Capture.");
         if (!app.currentPhoto) return alert("Photo capture failed.");
 
+        // Duplicate Check
         if (app.labeledDescriptors.length > 0) {
             const matcher = new faceapi.FaceMatcher(app.labeledDescriptors, 0.6);
             const match = matcher.findBestMatch(new Float32Array(app.biometricDescriptor));
             if (match.label !== 'unknown') return alert(`Duplicate: Already registered as ${match.label}`);
         }
 
+        // DB Insert
         const { error } = await supabaseClient.from('employees').insert([{
             id: id, name: name, unit: unit, designation: desig, 
             mobile: mobile, aadhar: aadhar, address: address, shift: shift,
@@ -444,7 +539,9 @@ const app = {
             alert("Staff Registered Successfully!");
             app.loadFaceData();
             bootstrap.Modal.getInstance(document.getElementById('addEmployeeModal')).hide();
-            document.getElementById('reg-name').value = ""; // Clear
+            // Clear specific fields
+            document.getElementById('reg-name').value = ""; 
+            document.getElementById('reg-id').value = "";
         } else alert(error.message);
     },
 
@@ -508,7 +605,7 @@ const app = {
         const { data: logs } = await supabaseClient.from('attendance').select('*');
         const report = emps.map(emp => {
             const eLogs = logs.filter(l => l.emp_id === emp.id);
-            return { Name: emp.name, ID: emp.id, Present: eLogs.length };
+            return { Name: emp.name, ID: emp.id, Unit: emp.unit, Shift: emp.shift || '-', Present: eLogs.length };
         });
         const ws = XLSX.utils.json_to_sheet(report);
         const wb = XLSX.utils.book_new();
@@ -522,8 +619,6 @@ const app = {
     openUnitModal: async () => { const { data } = await supabaseClient.from('units').select('*'); document.getElementById('unit-list').innerHTML = data.map(u => `<li class="list-group-item d-flex justify-content-between">${u.name} <button class="btn btn-sm btn-danger" onclick="app.deleteUnit(${u.id})">&times;</button></li>`).join(''); new bootstrap.Modal(document.getElementById('unitModal')).show(); },
     addUnit: async () => { await supabaseClient.from('units').insert([{ name: document.getElementById('new-unit-name').value }]); app.openUnitModal(); },
     deleteUnit: async (id) => { if (confirm("Delete?")) await supabaseClient.from('units').delete().eq('id', id); app.openUnitModal(); },
-
-    openEmployeeModal: async () => { const { data } = await supabaseClient.from('units').select('*'); document.getElementById('reg-unit').innerHTML = data.map(u => `<option value="${u.name}">${u.name}</option>`).join(''); new bootstrap.Modal(document.getElementById('addEmployeeModal')).show(); navigator.mediaDevices.getUserMedia({ video: {} }).then(s => document.getElementById('reg-video').srcObject = s); },
 
     showPerformance: async (empId) => {
         const { data: logs } = await supabaseClient.from('attendance').select('*').eq('emp_id', empId).limit(30);
@@ -617,7 +712,6 @@ const app = {
                 await supabaseClient.from('attendance').update({ check_out: timeNowStr }).eq('id', att.id);
                 msg = `Checked Out`; type = "info"; voiceMsg = `Shift Ended.`;
             } else {
-                // FIXED: Night shift check-in
                 await supabaseClient.from('attendance').insert([{ emp_id: emp.id, name: name, unit: emp.unit, date: shiftDateStr, check_in: timeNowStr }]);
                 msg = `Night Shift In`; type = "success"; voiceMsg = `Night shift check-in.`;
             }
