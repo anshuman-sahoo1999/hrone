@@ -30,8 +30,8 @@ const app = {
 
     // Scanner State
     lastScanMap: new Map(),
-    scanLock: new Map(), // Prevents rapid-fire duplicate scans
-    SCAN_COOLDOWN: 60000, // 1 Minute logic cooldown
+    scanLock: new Map(), 
+    SCAN_COOLDOWN: 60000, 
     isOnline: navigator.onLine,
 
     charts: { plant: null, efficiency: null },
@@ -49,7 +49,7 @@ const app = {
         try {
             const MODEL_URL = 'https://cdn.jsdelivr.net/npm/@vladmandic/face-api/model/';
             await Promise.all([
-                faceapi.nets.tinyFaceDetector.loadFromUri(MODEL_URL), // Essential for Kiosk
+                faceapi.nets.tinyFaceDetector.loadFromUri(MODEL_URL),
                 faceapi.nets.ssdMobilenetv1.loadFromUri(MODEL_URL),
                 faceapi.nets.faceLandmark68Net.loadFromUri(MODEL_URL),
                 faceapi.nets.faceRecognitionNet.loadFromUri(MODEL_URL)
@@ -107,7 +107,7 @@ const app = {
             return;
         }
 
-        // 2. License Check (Time Bomb)
+        // 2. License Check
         const { data: lic } = await supabaseClient.from('system_settings').select('*').eq('setting_key', 'license_expiry').single();
         if (lic && lic.setting_value) {
             if (new Date() > new Date(lic.setting_value)) {
@@ -137,7 +137,7 @@ const app = {
         } else {
             document.getElementById('admin-view').classList.remove('d-none');
             app.fetchWeather();
-            app.loadDesignations(); // Load filter dropdowns
+            app.loadDesignations(); 
             app.loadOverallCharts();
             app.refreshDashboardData();
         }
@@ -146,7 +146,237 @@ const app = {
     logout: () => location.reload(),
 
     // ========================================================
-    // 4. DASHBOARD & CHARTS
+    // 4. REPORTING (PDF & EXCEL - UPGRADED)
+    // ========================================================
+    
+    // --- HELPER: Load Image from URL ---
+    loadImage: (url) => {
+        return new Promise((resolve, reject) => {
+            const img = new Image();
+            img.src = url;
+            img.onload = () => resolve(img);
+            img.onerror = (e) => reject(e);
+        });
+    },
+
+    generateEmployeePDF: async () => {
+        const empId = document.getElementById('report-emp-select').value;
+        if (!empId) return alert("Please select an employee first.");
+
+        // 1. Fetch Data
+        const { data: emp } = await supabaseClient.from('employees').select('*').eq('id', empId).single();
+        const { data: logs } = await supabaseClient.from('attendance').select('*').eq('emp_id', empId);
+
+        if (!emp) return alert("Employee data not found.");
+
+        // 2. Prepare Calculations (Performance Section)
+        const now = new Date();
+        const currentMonth = now.getMonth(); 
+        const currentYear = now.getFullYear();
+        const daysInMonth = new Date(currentYear, currentMonth + 1, 0).getDate();
+        
+        const presentDays = logs.length;
+        const todayDate = now.getDate();
+        // Calculate days passed in month (to avoid counting future days as absent)
+        const daysPassed = Math.min(daysInMonth, todayDate); 
+        
+        // Calculate Absent Dates
+        const absentDatesList = [];
+        for (let d = 1; d <= daysPassed; d++) {
+            const dateStr = `${currentYear}-${String(currentMonth + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
+            const isPresent = logs.some(l => l.date === dateStr);
+            if (!isPresent) {
+                absentDatesList.push(String(d).padStart(2, '0'));
+            }
+        }
+        const absentDaysCount = absentDatesList.length;
+        const attendancePct = ((presentDays / daysPassed) * 100).toFixed(1);
+        
+        // Calculate Efficiency
+        let totalHrs = 0;
+        logs.forEach(l => { 
+            if (l.check_in && l.check_out) {
+                totalHrs += (new Date(`1970-01-01T${l.check_out}`) - new Date(`1970-01-01T${l.check_in}`)) / 36e5;
+            }
+        });
+        const efficiency = presentDays > 0 ? ((totalHrs / (presentDays * 8)) * 100).toFixed(1) : 0;
+
+        // 3. Initialize PDF
+        const { jsPDF } = window.jspdf;
+        const doc = new jsPDF();
+        const pageWidth = doc.internal.pageSize.getWidth();
+        const monthName = now.toLocaleString('default', { month: 'long' });
+
+        // --- HEADER ---
+        // Load Logo
+        try {
+            // Note: Ensure logo.png is accessible. If local dev, use relative path.
+            const logoImg = await app.loadImage('static/images/logo.png'); 
+            doc.addImage(logoImg, 'PNG', 14, 10, 20, 20); // x, y, w, h
+        } catch (e) {
+            console.warn("Logo not found", e);
+        }
+
+        doc.setFontSize(14);
+        doc.setFont("helvetica", "bold");
+        doc.setTextColor(40);
+        doc.text("Subhalaxmi Group of Companies", 40, 18);
+        
+        doc.setFontSize(10);
+        doc.setFont("helvetica", "normal");
+        doc.text("New Industrial Estate, Jagatpur, Cuttack", 40, 24);
+
+        doc.setFontSize(12);
+        doc.setFont("helvetica", "bold");
+        doc.setTextColor(0, 128, 0); // Green
+        doc.text(`PERFORMANCE REPORT: ${monthName.toUpperCase()}, ${currentYear}`, 14, 40);
+        doc.setLineWidth(0.5);
+        doc.setDrawColor(200);
+        doc.line(14, 42, pageWidth - 14, 42);
+
+        // --- SECTION A: GENERAL INFORMATION ---
+        doc.setFillColor(240, 240, 240);
+        doc.rect(14, 48, pageWidth - 28, 8, 'F');
+        doc.setFontSize(10);
+        doc.setTextColor(0);
+        doc.text("SECTION A: GENERAL INFORMATION", 16, 53);
+
+        const startY_A = 60;
+        doc.setFontSize(10);
+        
+        // Left Column (Text)
+        doc.text(`Name:`, 16, startY_A);      doc.setFont("helvetica", "bold"); doc.text(emp.name, 45, startY_A); doc.setFont("helvetica", "normal");
+        doc.text(`Designation:`, 16, startY_A + 6); doc.text(emp.designation || 'N/A', 45, startY_A + 6);
+        doc.text(`Employee ID:`, 16, startY_A + 12); doc.text(emp.id, 45, startY_A + 12);
+        doc.text(`Unit:`, 16, startY_A + 18);       doc.text(emp.unit || 'N/A', 45, startY_A + 18);
+        doc.text(`Mobile:`, 16, startY_A + 24);     doc.text(emp.mobile || 'N/A', 45, startY_A + 24);
+
+        // Right Column (Photo)
+        if (emp.photo && emp.photo.length > 100) {
+            try {
+                doc.addImage(emp.photo, 'JPEG', pageWidth - 50, startY_A - 2, 35, 35);
+                doc.setDrawColor(0);
+                doc.rect(pageWidth - 50, startY_A - 2, 35, 35); // Border
+            } catch (e) {
+                doc.rect(pageWidth - 50, startY_A - 2, 35, 35);
+                doc.text("No Photo", pageWidth - 45, startY_A + 15);
+            }
+        }
+
+        // --- SECTION B: PERFORMANCE EVALUATION ---
+        const startY_B = 105;
+        doc.setFillColor(240, 240, 240);
+        doc.rect(14, startY_B, pageWidth - 28, 8, 'F');
+        doc.setFont("helvetica", "bold");
+        doc.text("SECTION B: PERFORMANCE EVALUATION", 16, startY_B + 5);
+
+        const tableY = startY_B + 10;
+        
+        doc.autoTable({
+            startY: tableY,
+            head: [['Metric', 'Value']],
+            body: [
+                ['Month / Year', `${monthName}, ${currentYear}`],
+                ['Total Days (Month)', daysInMonth],
+                ['Days Present', presentDays],
+                ['Days Absent', absentDaysCount],
+                ['Absent Dates', absentDatesList.length > 0 ? absentDatesList.join(", ") : "None"],
+                ['Attendance %', `${attendancePct}%`],
+                ['Performance Efficiency', `${efficiency}%`]
+            ],
+            theme: 'grid',
+            headStyles: { fillColor: [44, 62, 80], textColor: 255 },
+            columnStyles: { 
+                0: { cellWidth: 60, fontStyle: 'bold' },
+                1: { cellWidth: 'auto' }
+            },
+            margin: { left: 14, right: 14 }
+        });
+
+        // --- SECTION C: WORK LOG ---
+        let startY_C = doc.lastAutoTable.finalY + 10;
+        
+        // Page break check
+        if (startY_C > 250) { doc.addPage(); startY_C = 20; }
+
+        doc.setFillColor(240, 240, 240);
+        doc.rect(14, startY_C, pageWidth - 28, 8, 'F');
+        doc.setFont("helvetica", "bold");
+        doc.setTextColor(0);
+        doc.text("SECTION C: DAILY WORK LOG", 16, startY_C + 5);
+
+        const workData = logs.map(l => [
+            l.date, 
+            l.check_in, 
+            l.check_out || '-', 
+            l.work_log || '-'
+        ]);
+
+        doc.autoTable({
+            startY: startY_C + 10,
+            head: [['Date', 'In Time', 'Out Time', 'Work Description']],
+            body: workData.length > 0 ? workData : [['-', '-', '-', 'No logs found']],
+            theme: 'striped',
+            headStyles: { fillColor: [0, 128, 0] }, // Green Header
+            styles: { fontSize: 9 },
+            columnStyles: {
+                0: { cellWidth: 25 },
+                1: { cellWidth: 25 },
+                2: { cellWidth: 25 },
+                3: { cellWidth: 'auto' }
+            },
+            margin: { left: 14, right: 14 }
+        });
+
+        // --- FOOTER ---
+        const pageCount = doc.internal.getNumberOfPages();
+        for(let i = 1; i <= pageCount; i++) {
+            doc.setPage(i);
+            const footerY = doc.internal.pageSize.height - 20;
+            
+            doc.setLineWidth(0.5);
+            doc.setDrawColor(200);
+            doc.line(14, footerY, pageWidth - 14, footerY);
+            
+            doc.setFontSize(7);
+            doc.setTextColor(100);
+            doc.setFont("helvetica", "italic");
+            
+            const disclaimer = "CONFIDENTIALITY NOTICE: The information contained in this report is confidential and intended only for the internal use of Subhalaxmi Group of Companies. Any unauthorized review, use, disclosure, or distribution is prohibited. This is a system-generated report and does not require a physical signature.";
+            const splitDisclaimer = doc.splitTextToSize(disclaimer, pageWidth - 28);
+            
+            doc.text(splitDisclaimer, 14, footerY + 5);
+            doc.text(`Generated on: ${new Date().toLocaleString()}`, 14, footerY + 15);
+            doc.text(`Page ${i} of ${pageCount}`, pageWidth - 30, footerY + 15);
+        }
+
+        doc.save(`${emp.name}_Performance_Report.pdf`);
+    },
+
+    generateEmployeeExcel: async () => {
+        const empId = document.getElementById('report-emp-select').value;
+        const { data: logs } = await supabaseClient.from('attendance').select('*').eq('emp_id', empId);
+        const ws = XLSX.utils.json_to_sheet(logs);
+        const wb = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(wb, ws, "Logs");
+        XLSX.writeFile(wb, "Employee_Log.xlsx");
+    },
+
+    exportFullExcelReport: async () => {
+        const { data: emps } = await supabaseClient.from('employees').select('*');
+        const { data: logs } = await supabaseClient.from('attendance').select('*');
+        const report = emps.map(emp => {
+            const eLogs = logs.filter(l => l.emp_id === emp.id);
+            return { Name: emp.name, ID: emp.id, Unit: emp.unit, Shift: emp.shift || '-', Present: eLogs.length };
+        });
+        const ws = XLSX.utils.json_to_sheet(report);
+        const wb = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(wb, ws, "Master");
+        XLSX.writeFile(wb, "Master_Report.xlsx");
+    },
+
+    // ========================================================
+    // 5. DASHBOARD & CHARTS
     // ========================================================
     loadOverallCharts: async () => {
         app.isOverallView = true;
@@ -209,7 +439,6 @@ const app = {
         app.charts.efficiency.render();
     },
 
-    // --- LUNCH UTILIZATION (RED ALERT LOGIC) ---
     renderLunchTable: (attData) => {
         const tbody = document.getElementById('lunch-log-body');
         if (!tbody) return; 
@@ -267,9 +496,7 @@ const app = {
         if (!app.isOverallView) document.getElementById('selected-date-display').innerText = app.selectedDateStr;
         app.renderCalendar();
 
-        // 1. Fetch Logs for Selected Date
         const { data: attData } = await supabaseClient.from('attendance').select('*').eq('date', app.selectedDateStr);
-        // 2. Fetch Employees for join/details
         const { data: allEmps } = await supabaseClient.from('employees').select('*');
 
         const totalEmp = allEmps ? allEmps.length : 0;
@@ -277,15 +504,12 @@ const app = {
         const absentCount = totalEmp - presentCount;
         let totalHours = 0; let closedShifts = 0;
 
-        // Populate Table
         const tbody = document.getElementById('activity-log-body');
         tbody.innerHTML = '';
 
         if (attData) {
             attData.forEach(row => {
-                // Find employee details for Designation/Shift display
                 const emp = allEmps.find(e => e.id === row.emp_id);
-                // Handle Default/Null values
                 const desig = emp && emp.designation ? emp.designation : '-';
                 const shift = emp && emp.shift ? emp.shift : '-';
 
@@ -330,16 +554,14 @@ const app = {
     },
 
     // ========================================================
-    // 5. ADVANCED FILTERING & REPORTING
+    // 6. ADVANCED FILTERING & CAMERA
     // ========================================================
     loadDesignations: async () => {
         const { data } = await supabaseClient.from('employees').select('designation');
         if(data) {
-            // Get unique designations, remove nulls/empty
             const unique = [...new Set(data.map(i => i.designation).filter(d => d && d.trim() !== ""))];
             const sel = document.getElementById('filter-designation');
             if(sel) {
-                // Keep "All" option + dynamically added ones
                 sel.innerHTML = `<option value="All">All Designations</option>` + unique.map(d => `<option value="${d}">${d}</option>`).join('');
             }
         }
@@ -350,7 +572,6 @@ const app = {
         const desig = document.getElementById('filter-designation').value;
         const monthMode = document.getElementById('filter-month').value;
 
-        // 1. Calculate Date Range
         const now = new Date();
         let startDate, endDate;
         
@@ -362,7 +583,6 @@ const app = {
             endDate = new Date(now.getFullYear(), now.getMonth(), 0).toISOString().split('T')[0];
         }
 
-        // 2. Fetch Data
         const { data: logs } = await supabaseClient.from('attendance').select('*').gte('date', startDate).lte('date', endDate);
         const { data: emps } = await supabaseClient.from('employees').select('*');
 
@@ -371,25 +591,20 @@ const app = {
             return;
         }
 
-        // 3. Smart Filtering (Handles Nulls as Defaults)
         const filtered = logs.filter(log => {
             const employee = emps.find(e => e.id === log.emp_id);
             if (!employee) return false;
 
-            // HANDLE NULLS: Treat null shift as 'Shift-1' and null designation as 'Staff'
             const empShift = employee.shift || 'Shift-1';
             const empDesig = employee.designation || 'Staff';
 
             const matchesShift = (shift === 'All') || (empShift === shift);
             const matchesDesig = (desig === 'All') || (empDesig === desig);
             
-            // Attach data for rendering
             log.empDetails = { ...employee, shift: empShift, designation: empDesig };
-            
             return matchesShift && matchesDesig;
         });
 
-        // 4. Render Filtered Data
         const tbody = document.getElementById('activity-log-body');
         tbody.innerHTML = '';
         
@@ -421,14 +636,8 @@ const app = {
 
     exportFilteredReport: async () => {
         alert("Exporting current filter view...");
-        // In a real production app, you would pass the 'filtered' array to an excel generator
     },
 
-    // ========================================================
-    // 6. EMPLOYEE REGISTRATION (CAMERA & PREVIEW UI FIXES)
-    // ========================================================
-    
-    // 1. Safe Modal Opener
     openEmployeeModal: async () => {
         const { data } = await supabaseClient.from('units').select('*');
         const unitSelect = document.getElementById('reg-unit');
@@ -436,15 +645,13 @@ const app = {
             unitSelect.innerHTML = data.map(u => `<option value="${u.name}">${u.name}</option>`).join('');
         }
         
-        // --- RESET UI FOR NEW ENTRY ---
-        document.getElementById('reg-video').classList.remove('d-none');       // Show Video
-        document.getElementById('reg-photo-preview').classList.add('d-none');  // Hide Image
-        document.getElementById('btn-capture').classList.remove('d-none');     // Show Capture Btn
-        document.getElementById('btn-retake').classList.add('d-none');         // Hide Retake Btn
+        document.getElementById('reg-video').classList.remove('d-none');
+        document.getElementById('reg-photo-preview').classList.add('d-none');
+        document.getElementById('btn-capture').classList.remove('d-none');
+        document.getElementById('btn-retake').classList.add('d-none');
         document.getElementById('reg-face-status').innerText = "Initializing Camera...";
         document.getElementById('reg-face-status').className = "small text-muted fw-bold";
         
-        // Clear Data
         app.biometricDescriptor = null;
         app.currentPhoto = null;
 
@@ -452,18 +659,14 @@ const app = {
         const modal = new bootstrap.Modal(modalEl);
         modal.show();
         
-        // Start camera ONLY when modal is fully visible
         modalEl.addEventListener('shown.bs.modal', () => { app.startRegCamera(); });
-        // Kill camera when modal closes
         modalEl.addEventListener('hidden.bs.modal', () => { app.stopRegCamera(); });
     },
 
-    // 2. Start Camera
     startRegCamera: async () => {
         const video = document.getElementById('reg-video');
         const status = document.getElementById('reg-face-status');
         
-        // Stop Kiosk stream if running
         if (document.getElementById('kiosk-video').srcObject) {
             const tracks = document.getElementById('kiosk-video').srcObject.getTracks();
             tracks.forEach(track => track.stop());
@@ -482,7 +685,6 @@ const app = {
         }
     },
 
-    // 3. Stop Camera
     stopRegCamera: () => {
         const video = document.getElementById('reg-video');
         if (video && video.srcObject) {
@@ -492,7 +694,6 @@ const app = {
         }
     },
 
-    // 4. Capture (Shows Preview)
     captureFace: async () => {
         const vid = document.getElementById('reg-video');
         const preview = document.getElementById('reg-photo-preview');
@@ -510,7 +711,6 @@ const app = {
             canvas.getContext('2d').drawImage(vid, 0, 0, 300, 225);
             app.currentPhoto = canvas.toDataURL('image/jpeg', 0.8);
 
-            // UI SWITCH
             preview.src = app.currentPhoto; 
             vid.classList.add('d-none');          
             preview.classList.remove('d-none');   
@@ -520,7 +720,7 @@ const app = {
             status.innerText = "Photo Captured & Verified!";
             status.className = "text-success fw-bold small mt-1";
             
-            app.stopRegCamera(); // Stop video to save resources
+            app.stopRegCamera(); 
 
         } else {
             status.innerText = "No Face Detected. Try Again.";
@@ -528,7 +728,6 @@ const app = {
         }
     },
 
-    // 5. Retake (Restarts Camera)
     retakePhoto: async () => {
         const vid = document.getElementById('reg-video');
         const preview = document.getElementById('reg-photo-preview');
@@ -548,7 +747,6 @@ const app = {
     },
 
     saveEmployee: async () => {
-        // Collect Data
         const id = document.getElementById('reg-id').value;
         const name = document.getElementById('reg-name').value;
         const desig = document.getElementById('reg-designation').value;
@@ -558,19 +756,16 @@ const app = {
         const address = document.getElementById('reg-address').value;
         const shift = document.getElementById('reg-shift').value;
 
-        // Validations
         if (!id || !name || !unit || !mobile) return alert("Fill required fields: ID, Name, Mobile, Unit.");
         if (!app.biometricDescriptor) return alert("Biometric required! Click Capture.");
         if (!app.currentPhoto) return alert("Photo capture failed.");
 
-        // Duplicate Check
         if (app.labeledDescriptors.length > 0) {
             const matcher = new faceapi.FaceMatcher(app.labeledDescriptors, 0.6);
             const match = matcher.findBestMatch(new Float32Array(app.biometricDescriptor));
             if (match.label !== 'unknown') return alert(`Duplicate: Already registered as ${match.label}`);
         }
 
-        // DB Insert
         const { error } = await supabaseClient.from('employees').insert([{
             id: id, name: name, unit: unit, designation: desig, 
             mobile: mobile, aadhar: aadhar, address: address, shift: shift,
@@ -581,15 +776,11 @@ const app = {
             alert("Staff Registered Successfully!");
             app.loadFaceData();
             bootstrap.Modal.getInstance(document.getElementById('addEmployeeModal')).hide();
-            // Clear fields
             document.getElementById('reg-name').value = ""; 
             document.getElementById('reg-id').value = "";
         } else alert(error.message);
     },
 
-    // ========================================================
-    // 7. UTILS: DIRECTORY, UNITS, LOGS
-    // ========================================================
     openStaffDirectory: async () => {
         const { data } = await supabaseClient.from('employees').select('*');
         const tbody = document.getElementById('staff-list-body');
@@ -604,56 +795,6 @@ const app = {
 
     filterStaff: (q) => { const rows = document.getElementById('staff-list-body').getElementsByTagName('tr'); for (let r of rows) r.style.display = r.textContent.toLowerCase().includes(q.toLowerCase()) ? "" : "none"; },
     deleteEmployee: async (id, name) => { if (confirm(`Delete ${name}?`)) { await supabaseClient.from('employees').delete().eq('id', id); alert("Deleted"); app.openStaffDirectory(); app.refreshDashboardData(); app.loadFaceData(); } },
-
-    openAdvancedReports: async () => {
-        const { data } = await supabaseClient.from('employees').select('*');
-        document.getElementById('report-emp-select').innerHTML = data.map(e => `<option value="${e.id}">${e.name}</option>`).join('');
-        new bootstrap.Modal(document.getElementById('reportsModal')).show();
-    },
-
-    generateEmployeePDF: async () => {
-        const empId = document.getElementById('report-emp-select').value;
-        const { data: emp } = await supabaseClient.from('employees').select('*').eq('id', empId).single();
-        const { data: logs } = await supabaseClient.from('attendance').select('*').eq('emp_id', empId);
-
-        const { jsPDF } = window.jspdf;
-        const doc = new jsPDF();
-        
-        doc.text(`Work Report: ${emp.name}`, 14, 20);
-        
-        if (emp.photo && emp.photo.length > 100) {
-            try { doc.addImage(emp.photo, 'JPEG', 150, 25, 35, 35); } catch(e) {}
-        }
-
-        doc.autoTable({
-            startY: 70,
-            head: [['Date', 'In', 'Out', 'Work Log']],
-            body: logs.map(l => [l.date, l.check_in, l.check_out || '-', l.work_log || '-']),
-        });
-        doc.save(`${emp.name}_Report.pdf`);
-    },
-
-    generateEmployeeExcel: async () => {
-        const empId = document.getElementById('report-emp-select').value;
-        const { data: logs } = await supabaseClient.from('attendance').select('*').eq('emp_id', empId);
-        const ws = XLSX.utils.json_to_sheet(logs);
-        const wb = XLSX.utils.book_new();
-        XLSX.utils.book_append_sheet(wb, ws, "Logs");
-        XLSX.writeFile(wb, "Employee_Log.xlsx");
-    },
-
-    exportFullExcelReport: async () => {
-        const { data: emps } = await supabaseClient.from('employees').select('*');
-        const { data: logs } = await supabaseClient.from('attendance').select('*');
-        const report = emps.map(emp => {
-            const eLogs = logs.filter(l => l.emp_id === emp.id);
-            return { Name: emp.name, ID: emp.id, Unit: emp.unit, Shift: emp.shift || '-', Present: eLogs.length };
-        });
-        const ws = XLSX.utils.json_to_sheet(report);
-        const wb = XLSX.utils.book_new();
-        XLSX.utils.book_append_sheet(wb, ws, "Master");
-        XLSX.writeFile(wb, "Master_Report.xlsx");
-    },
 
     openWorkLog: (id, name, log) => { document.getElementById('logAttId').value = id; document.getElementById('logEmpName').value = name; document.getElementById('logText').value = log; new bootstrap.Modal(document.getElementById('workLogModal')).show(); },
     saveWorkLog: async () => { await supabaseClient.from('attendance').update({ work_log: document.getElementById('logText').value }).eq('id', document.getElementById('logAttId').value); bootstrap.Modal.getInstance(document.getElementById('workLogModal')).hide(); app.refreshDashboardData(); },
@@ -672,9 +813,6 @@ const app = {
         new bootstrap.Modal(document.getElementById('performanceModal')).show();
     },
 
-    // ========================================================
-    // 8. ADMIN BACKEND (IT ONLY)
-    // ========================================================
     updateLicense: async () => {
         const date = document.getElementById('license-date').value;
         if(!date) return alert("Select date");
@@ -689,9 +827,6 @@ const app = {
     },
     toggleSystemLock: async (e) => { await supabaseClient.from('system_settings').upsert({ setting_key: 'system_lock', setting_value: e.target.checked ? 'active' : 'locked' }); app.systemLocked = !e.target.checked; },
 
-    // ========================================================
-    // 9. ATTENDANCE SCANNER
-    // ========================================================
     markAttendance: async (name) => {
         const now = new Date();
         if (!app.isOnline) {
@@ -711,7 +846,7 @@ const app = {
         if (!emp) return;
 
         const last = app.lastScanMap.get(emp.id);
-        if (last && (dateObj.getTime() - last < app.SCAN_COOLDOWN)) return; // Debounce
+        if (last && (dateObj.getTime() - last < app.SCAN_COOLDOWN)) return; 
 
         let shiftDate = new Date(dateObj);
         if (hour < 4) shiftDate.setDate(shiftDate.getDate() - 1);
@@ -722,7 +857,6 @@ const app = {
 
         let msg = "", type = "success", voiceMsg = "";
 
-        // ZONE A: MORNING (04:00 - 11:59)
         if (hour >= 4 && hour < 12) {
             if (!att) {
                 await supabaseClient.from('attendance').insert([{ emp_id: emp.id, name: name, unit: emp.unit, date: shiftDateStr, check_in: timeNowStr }]);
@@ -731,7 +865,6 @@ const app = {
                 msg = `Already Checked In`; type = "secondary"; voiceMsg = `Already checked in.`;
             }
         } 
-        // ZONE B: LUNCH (12:00 - 15:59)
         else if (hour >= 12 && hour < 16) {
             if (att) {
                 if (!att.lunch_out) {
@@ -748,7 +881,6 @@ const app = {
                 msg = `Late Check-in`; type = "warning"; voiceMsg = `Late check-in recorded.`;
             }
         } 
-        // ZONE C: NIGHT (16:00 - 03:59)
         else {
             if (att) {
                 await supabaseClient.from('attendance').update({ check_out: timeNowStr }).eq('id', att.id);
@@ -773,9 +905,6 @@ const app = {
         }
     },
 
-    // ========================================================
-    // 10. KIOSK & UTILS
-    // ========================================================
     switchView: async (view) => {
         if (view === 'kiosk') {
             document.getElementById('login-section').classList.add('d-none');
@@ -819,8 +948,6 @@ const app = {
                     if (result.label !== 'unknown') {
                         const name = result.label;
                         const now = Date.now();
-                        
-                        // INSTANT LOCK (DEBOUNCE)
                         const lastScan = app.scanLock.get(name);
                         if (lastScan && (now - lastScan < 60000)) {
                             statusBox.innerText = `Verified: ${name}`;
