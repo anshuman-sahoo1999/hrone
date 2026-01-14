@@ -12,5 +12,14 @@ def home():
 def kiosk_view():
     return render_template('index.html') 
 
+# Add this inside your app.py file
+
+@app.route('/public-scan')
+def public_kiosk():
+    # This renders a simplified page specifically for mobile/public use
+    return render_template('kiosk_public.html')
+
+
 if __name__ == '__main__':
     app.run(debug=True, port=5000)
+
