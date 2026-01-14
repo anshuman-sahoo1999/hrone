@@ -30,8 +30,8 @@ const app = {
 
     // Scanner State
     lastScanMap: new Map(),
-    scanLock: new Map(), 
-    SCAN_COOLDOWN: 60000, 
+    scanLock: new Map(), // Prevents rapid-fire duplicate scans
+    SCAN_COOLDOWN: 60000, // 1 Minute logic cooldown
     isOnline: navigator.onLine,
 
     charts: { plant: null, efficiency: null },
@@ -49,7 +49,7 @@ const app = {
         try {
             const MODEL_URL = 'https://cdn.jsdelivr.net/npm/@vladmandic/face-api/model/';
             await Promise.all([
-                faceapi.nets.tinyFaceDetector.loadFromUri(MODEL_URL),
+                faceapi.nets.tinyFaceDetector.loadFromUri(MODEL_URL), // Essential for Kiosk
                 faceapi.nets.ssdMobilenetv1.loadFromUri(MODEL_URL),
                 faceapi.nets.faceLandmark68Net.loadFromUri(MODEL_URL),
                 faceapi.nets.faceRecognitionNet.loadFromUri(MODEL_URL)
@@ -107,7 +107,7 @@ const app = {
             return;
         }
 
-        // 2. License Check
+        // 2. License Check (Time Bomb)
         const { data: lic } = await supabaseClient.from('system_settings').select('*').eq('setting_key', 'license_expiry').single();
         if (lic && lic.setting_value) {
             if (new Date() > new Date(lic.setting_value)) {
@@ -137,7 +137,7 @@ const app = {
         } else {
             document.getElementById('admin-view').classList.remove('d-none');
             app.fetchWeather();
-            app.loadDesignations(); 
+            app.loadDesignations(); // Load filter dropdowns
             app.loadOverallCharts();
             app.refreshDashboardData();
         }
@@ -146,10 +146,9 @@ const app = {
     logout: () => location.reload(),
 
     // ========================================================
-    // 4. REPORTING (PDF & EXCEL - UPGRADED)
+    // 4. REPORTING (PDF & EXCEL - PROFESSIONAL GRADE)
     // ========================================================
     
-    // --- HELPER: Load Image from URL ---
     loadImage: (url) => {
         return new Promise((resolve, reject) => {
             const img = new Image();
@@ -169,7 +168,7 @@ const app = {
 
         if (!emp) return alert("Employee data not found.");
 
-        // 2. Prepare Calculations (Performance Section)
+        // 2. Metrics Calculation
         const now = new Date();
         const currentMonth = now.getMonth(); 
         const currentYear = now.getFullYear();
@@ -177,10 +176,8 @@ const app = {
         
         const presentDays = logs.length;
         const todayDate = now.getDate();
-        // Calculate days passed in month (to avoid counting future days as absent)
         const daysPassed = Math.min(daysInMonth, todayDate); 
         
-        // Calculate Absent Dates
         const absentDatesList = [];
         for (let d = 1; d <= daysPassed; d++) {
             const dateStr = `${currentYear}-${String(currentMonth + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
@@ -192,7 +189,6 @@ const app = {
         const absentDaysCount = absentDatesList.length;
         const attendancePct = ((presentDays / daysPassed) * 100).toFixed(1);
         
-        // Calculate Efficiency
         let totalHrs = 0;
         logs.forEach(l => { 
             if (l.check_in && l.check_out) {
@@ -201,21 +197,17 @@ const app = {
         });
         const efficiency = presentDays > 0 ? ((totalHrs / (presentDays * 8)) * 100).toFixed(1) : 0;
 
-        // 3. Initialize PDF
+        // 3. Generate PDF
         const { jsPDF } = window.jspdf;
         const doc = new jsPDF();
         const pageWidth = doc.internal.pageSize.getWidth();
         const monthName = now.toLocaleString('default', { month: 'long' });
 
         // --- HEADER ---
-        // Load Logo
         try {
-            // Note: Ensure logo.png is accessible. If local dev, use relative path.
             const logoImg = await app.loadImage('static/images/logo.png'); 
-            doc.addImage(logoImg, 'PNG', 14, 10, 20, 20); // x, y, w, h
-        } catch (e) {
-            console.warn("Logo not found", e);
-        }
+            doc.addImage(logoImg, 'PNG', 14, 10, 20, 20); 
+        } catch (e) { console.warn("Logo missing"); }
 
         doc.setFontSize(14);
         doc.setFont("helvetica", "bold");
@@ -228,13 +220,13 @@ const app = {
 
         doc.setFontSize(12);
         doc.setFont("helvetica", "bold");
-        doc.setTextColor(0, 128, 0); // Green
+        doc.setTextColor(0, 128, 0); 
         doc.text(`PERFORMANCE REPORT: ${monthName.toUpperCase()}, ${currentYear}`, 14, 40);
         doc.setLineWidth(0.5);
         doc.setDrawColor(200);
         doc.line(14, 42, pageWidth - 14, 42);
 
-        // --- SECTION A: GENERAL INFORMATION ---
+        // --- SECTION A: PROFILE ---
         doc.setFillColor(240, 240, 240);
         doc.rect(14, 48, pageWidth - 28, 8, 'F');
         doc.setFontSize(10);
@@ -244,26 +236,24 @@ const app = {
         const startY_A = 60;
         doc.setFontSize(10);
         
-        // Left Column (Text)
         doc.text(`Name:`, 16, startY_A);      doc.setFont("helvetica", "bold"); doc.text(emp.name, 45, startY_A); doc.setFont("helvetica", "normal");
         doc.text(`Designation:`, 16, startY_A + 6); doc.text(emp.designation || 'N/A', 45, startY_A + 6);
         doc.text(`Employee ID:`, 16, startY_A + 12); doc.text(emp.id, 45, startY_A + 12);
         doc.text(`Unit:`, 16, startY_A + 18);       doc.text(emp.unit || 'N/A', 45, startY_A + 18);
         doc.text(`Mobile:`, 16, startY_A + 24);     doc.text(emp.mobile || 'N/A', 45, startY_A + 24);
 
-        // Right Column (Photo)
         if (emp.photo && emp.photo.length > 100) {
             try {
                 doc.addImage(emp.photo, 'JPEG', pageWidth - 50, startY_A - 2, 35, 35);
                 doc.setDrawColor(0);
-                doc.rect(pageWidth - 50, startY_A - 2, 35, 35); // Border
+                doc.rect(pageWidth - 50, startY_A - 2, 35, 35); 
             } catch (e) {
                 doc.rect(pageWidth - 50, startY_A - 2, 35, 35);
                 doc.text("No Photo", pageWidth - 45, startY_A + 15);
             }
         }
 
-        // --- SECTION B: PERFORMANCE EVALUATION ---
+        // --- SECTION B: METRICS ---
         const startY_B = 105;
         doc.setFillColor(240, 240, 240);
         doc.rect(14, startY_B, pageWidth - 28, 8, 'F');
@@ -271,7 +261,6 @@ const app = {
         doc.text("SECTION B: PERFORMANCE EVALUATION", 16, startY_B + 5);
 
         const tableY = startY_B + 10;
-        
         doc.autoTable({
             startY: tableY,
             head: [['Metric', 'Value']],
@@ -286,17 +275,12 @@ const app = {
             ],
             theme: 'grid',
             headStyles: { fillColor: [44, 62, 80], textColor: 255 },
-            columnStyles: { 
-                0: { cellWidth: 60, fontStyle: 'bold' },
-                1: { cellWidth: 'auto' }
-            },
+            columnStyles: { 0: { cellWidth: 60, fontStyle: 'bold' }, 1: { cellWidth: 'auto' } },
             margin: { left: 14, right: 14 }
         });
 
-        // --- SECTION C: WORK LOG ---
+        // --- SECTION C: LOGS ---
         let startY_C = doc.lastAutoTable.finalY + 10;
-        
-        // Page break check
         if (startY_C > 250) { doc.addPage(); startY_C = 20; }
 
         doc.setFillColor(240, 240, 240);
@@ -305,26 +289,16 @@ const app = {
         doc.setTextColor(0);
         doc.text("SECTION C: DAILY WORK LOG", 16, startY_C + 5);
 
-        const workData = logs.map(l => [
-            l.date, 
-            l.check_in, 
-            l.check_out || '-', 
-            l.work_log || '-'
-        ]);
+        const workData = logs.map(l => [l.date, l.check_in, l.check_out || '-', l.work_log || '-']);
 
         doc.autoTable({
             startY: startY_C + 10,
             head: [['Date', 'In Time', 'Out Time', 'Work Description']],
             body: workData.length > 0 ? workData : [['-', '-', '-', 'No logs found']],
             theme: 'striped',
-            headStyles: { fillColor: [0, 128, 0] }, // Green Header
+            headStyles: { fillColor: [0, 128, 0] },
             styles: { fontSize: 9 },
-            columnStyles: {
-                0: { cellWidth: 25 },
-                1: { cellWidth: 25 },
-                2: { cellWidth: 25 },
-                3: { cellWidth: 'auto' }
-            },
+            columnStyles: { 0: { cellWidth: 25 }, 1: { cellWidth: 25 }, 2: { cellWidth: 25 }, 3: { cellWidth: 'auto' } },
             margin: { left: 14, right: 14 }
         });
 
@@ -333,18 +307,14 @@ const app = {
         for(let i = 1; i <= pageCount; i++) {
             doc.setPage(i);
             const footerY = doc.internal.pageSize.height - 20;
-            
             doc.setLineWidth(0.5);
             doc.setDrawColor(200);
             doc.line(14, footerY, pageWidth - 14, footerY);
-            
             doc.setFontSize(7);
             doc.setTextColor(100);
             doc.setFont("helvetica", "italic");
-            
             const disclaimer = "CONFIDENTIALITY NOTICE: The information contained in this report is confidential and intended only for the internal use of Subhalaxmi Group of Companies. Any unauthorized review, use, disclosure, or distribution is prohibited. This is a system-generated report and does not require a physical signature.";
             const splitDisclaimer = doc.splitTextToSize(disclaimer, pageWidth - 28);
-            
             doc.text(splitDisclaimer, 14, footerY + 5);
             doc.text(`Generated on: ${new Date().toLocaleString()}`, 14, footerY + 15);
             doc.text(`Page ${i} of ${pageCount}`, pageWidth - 30, footerY + 15);
@@ -439,6 +409,7 @@ const app = {
         app.charts.efficiency.render();
     },
 
+    // --- LUNCH UTILIZATION (RED ALERT LOGIC) ---
     renderLunchTable: (attData) => {
         const tbody = document.getElementById('lunch-log-body');
         if (!tbody) return; 
