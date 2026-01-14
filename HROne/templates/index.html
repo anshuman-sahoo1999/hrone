@@ -110,60 +110,6 @@
                 </div>
             </div>
         </nav>
-        <div id="reportsSection" class="d-none container-fluid py-4 bg-light" style="min-height: 100vh;">
-    
-    <div class="d-flex justify-content-between align-items-center mb-4 bg-white p-3 rounded shadow-sm">
-        <div>
-            <h4 class="mb-0 text-primary fw-bold"><i class="fas fa-chart-line me-2"></i>Advanced Reports Dashboard</h4>
-            <small class="text-muted">Deep dive analytics and export tools</small>
-        </div>
-        <button id="closeReportsBtn" class="btn btn-outline-danger">
-            <i class="fas fa-arrow-left me-2"></i>Back to Dashboard
-        </button>
-    </div>
-
-    <div class="row">
-        <div class="col-md-3">
-            <div class="card shadow-sm border-0 mb-3">
-                <div class="card-header bg-dark text-white fw-bold">Report Controls</div>
-                <div class="card-body">
-                    <div class="mb-3">
-                        <label class="form-label fw-bold">Report Type</label>
-                        <select class="form-select" id="adv-report-type">
-                            <option value="attendance">Attendance Summary</option>
-                            <option value="late">Late Arrivals</option>
-                            <option value="overtime">Overtime Analysis</option>
-                        </select>
-                    </div>
-                    <div class="mb-3">
-                        <label class="form-label fw-bold">Date Range</label>
-                        <input type="date" class="form-control mb-2" id="adv-start-date">
-                        <input type="date" class="form-control" id="adv-end-date">
-                    </div>
-                    <button class="btn btn-primary w-100 mb-2" onclick="app.loadAdvancedReportStats()">
-                        <i class="fas fa-sync-alt me-2"></i>Generate View
-                    </button>
-                    <button class="btn btn-success w-100" onclick="app.exportFullExcelReport()">
-                        <i class="fas fa-file-excel me-2"></i>Export Master Excel
-                    </button>
-                </div>
-            </div>
-        </div>
-
-        <div class="col-md-9">
-            <div class="card shadow-sm border-0">
-                <div class="card-body">
-                    <div id="adv-report-content" class="text-center py-5">
-                        <div class="spinner-border text-primary" role="status">
-                            <span class="visually-hidden">Loading...</span>
-                        </div>
-                        <p class="text-muted mt-3">Select filters and click 'Generate View'</p>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
-</div>
 
         <div class="offcanvas offcanvas-start" tabindex="-1" id="mobileMenu">
             <div class="offcanvas-header bg-success text-white">
@@ -262,8 +208,7 @@
                             <div class="card-header bg-white d-flex justify-content-between align-items-center flex-wrap gap-2">
                                 <h5 class="m-0 text-success">Daily Logs</h5>
                                 <div>
-                                    <button class="btn btn-sm btn-outline-dark me-2" onclick="app.openAdvancedReports()"><i class="fas fa-file-pdf"></i> Employee Report</button>
-                                    <button class="btn btn-sm btn-success" onclick="app.exportFullExcelReport()"><i class="fas fa-file-excel"></i> Master Excel</button>
+                                    <button id="advancedReportsBtn" class="btn btn-sm btn-outline-dark me-2" onclick="app.openAdvancedReports()"><i class="fas fa-chart-bar"></i> Advanced Reports</button>
                                 </div>
                             </div>
 
@@ -380,6 +325,59 @@
                 <div class="small text-white mt-3">&copy; <span id="dynamic-year">2026</span> <strong>Subhalaxmi Pet and Plastics</strong>. All Rights Reserved.</div>
             </div>
         </footer>
+    </div>
+    <div id="reportsSection" class="d-none container-fluid py-4 bg-light" style="min-height: 100vh;">
+        <div class="d-flex justify-content-between align-items-center mb-4 bg-white p-3 rounded shadow-sm">
+            <div>
+                <h4 class="mb-0 text-primary fw-bold"><i class="fas fa-chart-line me-2"></i>Advanced Reports Dashboard</h4>
+                <small class="text-muted">Deep dive analytics and export tools</small>
+            </div>
+            <button id="closeReportsBtn" class="btn btn-outline-danger">
+                <i class="fas fa-arrow-left me-2"></i>Back to Dashboard
+            </button>
+        </div>
+
+        <div class="row">
+            <div class="col-md-3">
+                <div class="card shadow-sm border-0 mb-3">
+                    <div class="card-header bg-dark text-white fw-bold">Report Controls</div>
+                    <div class="card-body">
+                        <div class="mb-3">
+                            <label class="form-label fw-bold">Report Type</label>
+                            <select class="form-select" id="adv-report-type">
+                                <option value="attendance">Attendance Summary</option>
+                                <option value="late">Late Arrivals</option>
+                                <option value="overtime">Overtime Analysis</option>
+                            </select>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label fw-bold">Date Range</label>
+                            <input type="date" class="form-control mb-2" id="adv-start-date">
+                            <input type="date" class="form-control" id="adv-end-date">
+                        </div>
+                        <button class="btn btn-primary w-100 mb-2" onclick="app.loadAdvancedReportStats()">
+                            <i class="fas fa-sync-alt me-2"></i>Generate View
+                        </button>
+                        <button class="btn btn-success w-100" onclick="app.exportFullExcelReport()">
+                            <i class="fas fa-file-excel me-2"></i>Export Master Excel
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-md-9">
+                <div class="card shadow-sm border-0">
+                    <div class="card-body">
+                        <div id="adv-report-content" class="text-center py-5">
+                            <div class="spinner-border text-primary" role="status">
+                                <span class="visually-hidden">Loading...</span>
+                            </div>
+                            <p class="text-muted mt-3">Select filters and click 'Generate View'</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
     </div>
 
     <div id="kiosk-view" class="d-none bg-dark vh-100 position-relative text-white overflow-hidden">
@@ -556,6 +554,3 @@
     <script src="{{ url_for('static', filename='js/script.js') }}?v=16"></script>
 </body>
 </html>
-
-
-
