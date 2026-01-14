@@ -64,8 +64,16 @@ const app = {
     attachListeners: () => {
         const loginForm = document.getElementById('login-form');
         if (loginForm) loginForm.addEventListener('submit', app.handleLogin);
+        
         const lockToggle = document.getElementById('system-lock-toggle');
         if (lockToggle) lockToggle.addEventListener('change', app.toggleSystemLock);
+
+        // --- NEW: Advanced Reports Listeners ---
+        const advRepBtn = document.getElementById('advancedReportsBtn');
+        if (advRepBtn) advRepBtn.addEventListener('click', app.openAdvancedReports);
+
+        const closeRepBtn = document.getElementById('closeReportsBtn');
+        if (closeRepBtn) closeRepBtn.addEventListener('click', app.closeAdvancedReports);
     },
 
     speak: (text) => {
@@ -149,6 +157,45 @@ const app = {
     // 4. REPORTING (PDF & EXCEL - PROFESSIONAL GRADE)
     // ========================================================
     
+    // --- NEW: Advanced Reports View Switching ---
+    openAdvancedReports: () => {
+        console.log("Opening Advanced Reports...");
+        
+        // Hide the main Dashboard Layout
+        const dashboard = document.getElementById('dashboard-layout');
+        if(dashboard) dashboard.classList.add('d-none');
+        
+        // Show the Reports Section (Ensure you have a div with id="reportsSection" in your HTML)
+        const reportsSection = document.getElementById('reportsSection');
+        if (reportsSection) {
+            reportsSection.classList.remove('d-none');
+            // Load specific data for this view
+            app.loadAdvancedReportStats();
+        } else {
+            alert("Error: 'reportsSection' div not found in HTML.");
+        }
+    },
+
+    closeAdvancedReports: () => {
+        // Hide Reports
+        const reportsSection = document.getElementById('reportsSection');
+        if (reportsSection) reportsSection.classList.add('d-none');
+
+        // Show Dashboard
+        const dashboard = document.getElementById('dashboard-layout');
+        if(dashboard) dashboard.classList.remove('d-none');
+    },
+
+    loadAdvancedReportStats: () => {
+        // Placeholder: Logic to populate the advanced report dashboard
+        const container = document.getElementById('adv-report-content');
+        if(container) {
+            const timestamp = new Date().toLocaleString();
+            container.innerHTML = `<div class="alert alert-info">Report Data Updated: ${timestamp}</div>`;
+        }
+    },
+    // ---------------------------------------------
+
     loadImage: (url) => {
         return new Promise((resolve, reject) => {
             const img = new Image();
@@ -236,7 +283,7 @@ const app = {
         const startY_A = 60;
         doc.setFontSize(10);
         
-        doc.text(`Name:`, 16, startY_A);      doc.setFont("helvetica", "bold"); doc.text(emp.name, 45, startY_A); doc.setFont("helvetica", "normal");
+        doc.text(`Name:`, 16, startY_A);       doc.setFont("helvetica", "bold"); doc.text(emp.name, 45, startY_A); doc.setFont("helvetica", "normal");
         doc.text(`Designation:`, 16, startY_A + 6); doc.text(emp.designation || 'N/A', 45, startY_A + 6);
         doc.text(`Employee ID:`, 16, startY_A + 12); doc.text(emp.id, 45, startY_A + 12);
         doc.text(`Unit:`, 16, startY_A + 18);       doc.text(emp.unit || 'N/A', 45, startY_A + 18);
