@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>HROne Public Scanner</title>
+    
+    <link rel="icon" type="image/png" href="{{ url_for('static', filename='images/logo.png') }}">
+
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <style>
+        body { background-color: #000; overflow: hidden; }
+        #kiosk-view { display: block !important; } /* Force Kiosk Visible */
+        .video-container {
+            width: 100% !important;
+            max-width: 100% !important;
+            height: auto !important;
+            aspect-ratio: 3/4 !important; /* Portrait optimization for phones */
+            border: 2px solid #28a745;
+            border-radius: 12px;
+            position: relative;
+            overflow: hidden;
+        }
+        #kiosk-video, #kiosk-canvas {
+            object-fit: cover;
+        }
+    </style>
+
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.canvasjs.com/canvasjs.min.js"></script>
+    <script src="https://cdn.sheetjs.com/xlsx-latest/package/dist/xlsx.full.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.29/jspdf.plugin.autotable.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@vladmandic/face-api/dist/face-api.js"></script>
+</head>
+
+<body class="bg-dark">
+
+    <div id="kiosk-view" class="vh-100 position-relative text-white d-flex flex-column align-items-center justify-content-center">
+        
+        <div class="position-absolute top-0 end-0 m-3 z-1">
+            <span id="kiosk-network-status" class="badge bg-success shadow"><i class="fas fa-wifi"></i> Online</span>
+        </div>
+
+        <div class="text-center mb-3">
+            <img src="{{ url_for('static', filename='images/logo.png') }}" alt="Logo" width="50" class="mb-2">
+            <h5 class="fw-bold mb-0">HROne Attendance</h5>
+            <small class="text-white-50">Face Recognition System</small>
+        </div>
+
+        <div class="container d-flex justify-content-center">
+            <div class="video-container shadow-lg">
+                <video id="kiosk-video" class="w-100 h-100" autoplay muted playsinline></video>
+                <canvas id="kiosk-canvas" class="position-absolute top-0 start-0 w-100 h-100"></canvas>
+            </div>
+        </div>
+
+        <div class="container mt-3 w-100 text-center">
+            <div id="scan-message" class="alert alert-dark border-secondary text-white fw-bold shadow-sm mx-auto" style="max-width: 400px;">
+                <div class="spinner-border spinner-border-sm text-success me-2" role="status"></div>
+                Initializing Camera...
+            </div>
+        </div>
+
+        <div class="fixed-bottom text-center pb-2">
+            <small class="text-secondary" style="font-size: 0.7rem;">&copy; Subhalaxmi Group • Secure Kiosk</small>
+        </div>
+    </div>
+
+    <div id="login-section" class="d-none">
+        <form id="login-form"></form>
+        <input id="login-user"><input id="login-pass">
+        <div id="system-status-badge"></div>
+        <input type="checkbox" id="system-lock-toggle">
+    </div>
+    <div id="dashboard-layout" class="d-none">
+        <div id="current-date"></div>
+        <div id="mob-current-date"></div>
+        <div id="dynamic-year"></div>
+        <div id="weather-temp"></div>
+        <div id="mob-weather"></div>
+        <div id="mob-aqi"></div>
+        <div id="mob-aqi-nav"></div>
+        <div id="activity-log-body"></div>
+        <div id="lunch-log-body"></div>
+        <div id="selected-date-display"></div>
+        <div id="kpi-present"></div>
+        <div id="kpi-absent"></div>
+        <div id="kpi-hours"></div>
+        <div id="calendar-grid"></div>
+        <div id="calendar-month-year"></div>
+        <select id="filter-designation"></select>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    
+    <script src="{{ url_for('static', filename='js/script.js') }}"></script>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            console.log("Public Kiosk Mode: Initializing...");
+            
+            // 1. Initialize the App
+            // (app.init() is already called in script.js DOMContentLoaded, 
+            // but we add a small delay to ensure models load before we force the camera)
+            
+            setTimeout(() => {
+                // 2. Force switch to Kiosk view immediately
+                // This triggers the camera start and model loading logic in your script.js
+                if (window.app && window.app.switchView) {
+                    app.switchView('kiosk');
+                    
+                    // Update visual status
+                    const msg = document.getElementById('scan-message');
+                    if(msg) msg.innerHTML = "Align face within frame";
+                }
+            }, 1000); 
+        });
+    </script>
+</body>
+</html>
