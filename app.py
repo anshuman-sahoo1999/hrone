@@ -1,12 +1,16 @@
 import requests
 import json
+import os
 from flask import Flask, render_template, request, jsonify
+from dotenv import load_dotenv
+
+load_dotenv()
 
 app = Flask(__name__)
 
 # --- Turso DB Configuration ---
-TURSO_URL = 'https://hrone-db-anshuman-sahoo1999.aws-ap-south-1.turso.io'
-TURSO_TOKEN = 'eyJhbGciOiJFZERTQSIsInR5cCI6IkpXVCJ9.eyJhIjoicnciLCJpYXQiOjE3NzE4NDc4MjMsImlkIjoiZjRjZjBiODYtNDAzNS00Mzk5LWEyZWYtMDBjMzcxYjYxYjRmIiwicmlkIjoiZWZkZDNmMmItOWE5Yy00NDU2LWJhYzYtYjYyMjIxZGJhZDBjIn0.leq6G0-Ku5bMsIROT015KdLvhR5gbjwdwz6lade401mlxfMIDWEvYuCB_mH4zNIUge_3xA-g0CkpoJ4tdmKXCQ'
+TURSO_URL = os.getenv('TURSO_URL')
+TURSO_TOKEN = os.getenv('TURSO_TOKEN')
 
 def to_turso_value(val):
     if val is None:
