@@ -366,8 +366,8 @@ const app = {
             endDate = new Date(startDate.getFullYear(), 11, 31);
         }
 
-        const startStr = startDate.toISOString().split('T')[0];
-        const endStr = endDate.toISOString().split('T')[0];
+        const startStr = app.formatDate(startDate);
+        const endStr = app.formatDate(endDate);
 
         if (type === 'matrix') {
             return app.loadMatrixReport(startStr, endStr);
@@ -432,7 +432,7 @@ const app = {
         let curr = new Date(startStr);
         const end = new Date(endStr);
         while (curr <= end) {
-            days.push(new Date(curr).toISOString().split('T')[0]);
+            days.push(app.formatDate(curr));
             curr.setDate(curr.getDate() + 1);
         }
 
@@ -572,8 +572,8 @@ const app = {
             endDate = new Date(startDate.getFullYear(), 11, 31);
         }
 
-        const startStr = startDate.toISOString().split('T')[0];
-        const endStr = endDate.toISOString().split('T')[0];
+        const startStr = app.formatDate(startDate);
+        const endStr = app.formatDate(endDate);
 
         if (type === 'matrix') {
             return app.exportMatrixExcel(startStr, endStr);
@@ -619,7 +619,7 @@ const app = {
         const days = [];
         let curr = new Date(startStr);
         const end = new Date(endStr);
-        while (curr <= end) { days.push(new Date(curr).toISOString().split('T')[0]); curr.setDate(curr.getDate() + 1); }
+        while (curr <= end) { days.push(app.formatDate(curr)); curr.setDate(curr.getDate() + 1); }
 
         const rows = [];
         const monthName = new Date(startStr).toLocaleDateString('en-US', { month: 'long', year: 'numeric' }).toUpperCase();
@@ -1907,7 +1907,15 @@ const app = {
     selectDate: (d) => { app.selectedDateStr = d; app.isOverallView = false; app.refreshDashboardData(); },
     resetToToday: () => { app.selectedDateStr = new Date().toISOString().split('T')[0]; app.isOverallView = false; app.refreshDashboardData(); },
     changeMonth: (d) => { app.currentDate.setMonth(app.currentDate.getMonth() + d); app.renderCalendar(); },
-    renderCalendar: () => { const g = document.getElementById('calendar-grid'); if (!g) return; g.innerHTML = ''; const y = app.currentDate.getFullYear(); const m = app.currentDate.getMonth(); document.getElementById('calendar-month-year').innerText = new Date(y, m).toLocaleDateString('en-US', { month: 'short', year: 'numeric' });['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa'].forEach(d => g.innerHTML += `<div class="calendar-day-header">${d}</div>`); const f = new Date(y, m, 1).getDay(); const days = new Date(y, m + 1, 0).getDate(); for (let i = 0; i < f; i++)g.innerHTML += `<div></div>`; for (let d = 1; d <= days; d++) { const dt = `${y}-${String(m + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`; g.innerHTML += `<div class="calendar-day ${dt === app.selectedDateStr ? 'active' : ''}" onclick="app.selectDate('${dt}')">${d}</div>`; } }
+    renderCalendar: () => { const g = document.getElementById('calendar-grid'); if (!g) return; g.innerHTML = ''; const y = app.currentDate.getFullYear(); const m = app.currentDate.getMonth(); document.getElementById('calendar-month-year').innerText = new Date(y, m).toLocaleDateString('en-US', { month: 'short', year: 'numeric' });['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa'].forEach(d => g.innerHTML += `<div class="calendar-day-header">${d}</div>`); const f = new Date(y, m, 1).getDay(); const days = new Date(y, m + 1, 0).getDate(); for (let i = 0; i < f; i++)g.innerHTML += `<div></div>`; for (let d = 1; d <= days; d++) { const dt = `${y}-${String(m + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`; g.innerHTML += `<div class="calendar-day ${dt === app.selectedDateStr ? 'active' : ''}" onclick="app.selectDate('${dt}')">${d}</div>`; } },
+
+    formatDate: (date) => {
+        const d = new Date(date);
+        const year = d.getFullYear();
+        const month = String(d.getMonth() + 1).padStart(2, '0');
+        const day = String(d.getDate()).padStart(2, '0');
+        return `${year}-${month}-${day}`;
+    }
 };
 
 document.addEventListener('DOMContentLoaded', app.init);
