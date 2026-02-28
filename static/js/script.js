@@ -1935,6 +1935,20 @@ const app = {
         const month = String(d.getMonth() + 1).padStart(2, '0');
         const day = String(d.getDate()).padStart(2, '0');
         return `${year}-${month}-${day}`;
+    },
+
+    populateReportEmployees: async () => {
+        const { data: emps } = await db.from('employees').select('id, name');
+        const select = document.getElementById('adv-report-emp');
+        if (select && emps) {
+            select.innerHTML = '<option value="all">All Employees</option>';
+            emps.forEach(e => {
+                const opt = document.createElement('option');
+                opt.value = e.id;
+                opt.textContent = `${e.name} (${e.id})`;
+                select.appendChild(opt);
+            });
+        }
     }
 };
 
