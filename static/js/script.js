@@ -327,6 +327,14 @@ const app = {
         const reportsSection = document.getElementById('reportsSection');
         if (reportsSection) {
             reportsSection.classList.remove('d-none');
+
+            // Set default dates to Today
+            const today = app.formatDate(new Date());
+            const startInput = document.getElementById('adv-start-date');
+            const endInput = document.getElementById('adv-end-date');
+            if (startInput) startInput.value = today;
+            if (endInput) endInput.value = today;
+
             // Load specific data for this view
             app.loadAdvancedReportStats();
         } else {
