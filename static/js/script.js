@@ -462,15 +462,42 @@ const app = {
         let html = `
             <div class="matrix-container bg-white p-3 rounded shadow-sm table-responsive">
                 <style>
-                    .matrix-table { font-size: 0.8rem; border-collapse: collapse; width: 100%; }
-                    .matrix-table th, .matrix-table td { border: 1px solid #dee2e6; padding: 4px; text-align: center; min-width: 30px; }
-                    .matrix-table .emp-name { text-align: left; min-width: 150px; position: sticky; left: 0; background: #f8f9fa; z-index: 2; font-weight: bold; }
-                    .matrix-table .status-P { background-color: #d4edda; color: #155724; font-weight: bold; }
-                    .matrix-table .status-A { background-color: #f8d7da; color: #721c24; }
-                    .matrix-table .status-L { background-color: #cee3ff; color: #004085; font-weight: bold; }
-                    .matrix-table .status-H { background-color: #fff3cd; color: #856404; font-weight: bold; }
-                    .matrix-header-main { background: #6f42c1; color: white; }
-                    .matrix-header-days { background: #e9ecef; font-weight: bold; }
+                    .matrix-table { font-size: 0.8rem; border-collapse: separate; border-spacing: 0; width: 100%; }
+                    .matrix-table th, .matrix-table td { border: 1px solid #dee2e6; padding: 4px; text-align: center; min-width: 30px; background: white; }
+                    
+                    /* Sticky Left: Employee Name */
+                    .matrix-table .emp-name { 
+                        text-align: left; 
+                        min-width: 150px; 
+                        position: sticky; 
+                        left: 0; 
+                        background: #ffffff !important; 
+                        z-index: 10; 
+                        font-weight: bold;
+                        border-right: 2px solid #6f42c1 !important;
+                    }
+                    
+                    /* Sticky Right: Summary Columns */
+                    .matrix-table .sticky-right {
+                        position: sticky;
+                        right: 0;
+                        background: #f8f9fa !important;
+                        z-index: 9;
+                        border-left: 2px solid #6f42c1 !important;
+                    }
+                    .matrix-table .sticky-right-2 {
+                        position: sticky;
+                        right: 38px; /* Offset for the very last column */
+                        background: #f8f9fa !important;
+                        z-index: 9;
+                    }
+
+                    .matrix-table .status-P { background-color: #d4edda !important; color: #155724; font-weight: bold; }
+                    .matrix-table .status-A { background-color: #f8d7da !important; color: #721c24; }
+                    .matrix-table .status-L { background-color: #cee3ff !important; color: #004085; font-weight: bold; }
+                    .matrix-table .status-H { background-color: #fff3cd !important; color: #856404; font-weight: bold; }
+                    .matrix-header-main { background: #6f42c1; color: white; position: sticky; top: 0; z-index: 11; }
+                    .matrix-header-days { background: #e9ecef; font-weight: bold; position: sticky; top: 0; z-index: 11; }
                 </style>
                 <div class="d-flex justify-content-between align-items-center mb-3">
                     <h5 class="fw-bold mb-0">Matrix Attendance: ${startStr} to ${endStr}</h5>
@@ -481,8 +508,8 @@ const app = {
                         <tr class="matrix-header-days">
                             <th class="emp-name" rowspan="2">Employee Name</th>
                             <th colspan="${days.length}">Attendance Days</th>
-                            <th rowspan="2">Pres.</th>
-                            <th rowspan="2">Abs.</th>
+                            <th class="sticky-right-2" rowspan="2">Pres.</th>
+                            <th class="sticky-right" rowspan="2">Abs.</th>
                         </tr>
                         <tr class="matrix-header-days">
                             ${days.map(d => `<th>${new Date(d).getDate()}</th>`).join('')}
@@ -522,7 +549,7 @@ const app = {
 
             totalPresentCount += presentCount;
             totalAbsentCount += absentCount;
-            html += `<td class="fw-bold text-success">${presentCount}</td><td class="fw-bold text-danger">${absentCount}</td></tr>`;
+            html += `<td class="fw-bold text-success sticky-right-2">${presentCount}</td><td class="fw-bold text-danger sticky-right">${absentCount}</td></tr>`;
         });
 
         html += `
