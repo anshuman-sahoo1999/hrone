@@ -193,9 +193,15 @@ const app = {
     // ========================================================
     init: async () => {
         app.updateDate();
+        app.fetchWeather();
+        setInterval(app.updateDate, 60000);
+        setInterval(app.fetchWeather, 300000);
         app.setupNetworkListeners();
         await app.checkSystemStatus();
         app.attachListeners();
+
+        // Populate employee dropdown for reports
+        app.populateReportEmployees();
 
         // Load AI Models
         try {
@@ -343,6 +349,7 @@ const app = {
         const grain = document.getElementById('adv-report-grain').value;
         const start = document.getElementById('adv-start-date').value;
         const end = document.getElementById('adv-end-date').value;
+        const empId = document.getElementById('adv-report-emp').value;
         const container = document.getElementById('adv-report-content');
 
         if (!start) return alert("Please select a start date.");
@@ -370,13 +377,17 @@ const app = {
         const endStr = app.formatDate(endDate);
 
         if (type === 'matrix') {
-            return app.loadMatrixReport(startStr, endStr);
+            return app.loadMatrixReport(startStr, endStr, empId);
         }
 
         // --- Original Summary logic ---
         const { data: logs } = await db.from('attendance').select('*');
-        const { data: emps } = await db.from('employees').select('*');
+        let { data: emps } = await db.from('employees').select('*');
         if (!logs || !emps) return container.innerHTML = "No data available.";
+
+        if (empId !== 'all') {
+            emps = emps.filter(e => e.id == empId);
+        }
 
         const filteredLogs = logs.filter(l => l.date >= startStr && l.date <= endStr);
 
@@ -418,14 +429,18 @@ const app = {
         `;
     },
 
-    loadMatrixReport: async (startStr, endStr) => {
+    loadMatrixReport: async (startStr, endStr, empId = 'all') => {
         const container = document.getElementById('adv-report-content');
-        const { data: emps } = await db.from('employees').select('*');
+        let { data: emps } = await db.from('employees').select('*');
         const { data: logs } = await db.from('attendance').select('*');
         const { data: leaves } = await db.from('leave_master').select('*');
         const { data: holidays } = await db.from('holiday_master').select('*');
 
         if (!emps) return container.innerHTML = "No staff found.";
+
+        if (empId !== 'all') {
+            emps = emps.filter(e => e.id == empId);
+        }
 
         // Generate date list
         const days = [];
@@ -574,9 +589,10 @@ const app = {
 
         const startStr = app.formatDate(startDate);
         const endStr = app.formatDate(endDate);
+        const empId = document.getElementById('adv-report-emp').value;
 
         if (type === 'matrix') {
-            return app.exportMatrixExcel(startStr, endStr);
+            return app.exportMatrixExcel(startStr, endStr, empId);
         }
 
         const { data: logs } = await db.from('attendance').select('*');
@@ -608,13 +624,17 @@ const app = {
         XLSX.writeFile(wb, `HROne_Report_${grain}_${startStr}.xlsx`);
     },
 
-    exportMatrixExcel: async (startStr, endStr) => {
-        const { data: emps } = await db.from('employees').select('*');
+    exportMatrixExcel: async (startStr, endStr, empId = 'all') => {
+        let { data: emps } = await db.from('employees').select('*');
         const { data: logs } = await db.from('attendance').select('*');
         const { data: leaves } = await db.from('leave_master').select('*');
         const { data: holidays } = await db.from('holiday_master').select('*');
 
         if (!emps) return alert("No staff found to export.");
+
+        if (empId !== 'all') {
+            emps = emps.filter(e => e.id == empId);
+        }
 
         const days = [];
         let curr = new Date(startStr);
