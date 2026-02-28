@@ -1013,33 +1013,61 @@ const app = {
         const vid = document.getElementById('reg-video');
         const preview = document.getElementById('reg-photo-preview');
         const status = document.getElementById('reg-face-status');
+        const btn = document.getElementById('btn-capture');
 
         if (!app.faceModelsLoaded) return alert("Loading AI Models... Please wait.");
         if (!vid.srcObject) return alert("Camera not active.");
 
-        const det = await faceapi.detectSingleFace(vid).withFaceLandmarks().withFaceDescriptor();
+        // 1. Instant Visual Feedback
+        btn.disabled = true;
+        btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Processing...';
+        status.innerText = "Analyzing Face... Please hold still.";
+        status.className = "text-warning fw-bold small mt-1";
 
-        if (det) {
-            app.biometricDescriptor = Array.from(det.descriptor);
-            const canvas = document.createElement('canvas');
-            canvas.width = 300; canvas.height = 225;
-            canvas.getContext('2d').drawImage(vid, 0, 0, 300, 225);
-            app.currentPhoto = canvas.toDataURL('image/jpeg', 0.8);
+        // 2. Immediate Snapshot to Canvas
+        const canvas = document.createElement('canvas');
+        canvas.width = vid.videoWidth || 320;
+        canvas.height = vid.videoHeight || 240;
+        const ctx = canvas.getContext('2d');
+        ctx.drawImage(vid, 0, 0, canvas.width, canvas.height);
+        const snapshotData = canvas.toDataURL('image/jpeg', 0.9);
 
-            preview.src = app.currentPhoto;
-            vid.classList.add('d-none');
-            preview.classList.remove('d-none');
-            document.getElementById('btn-capture').classList.add('d-none');
-            document.getElementById('btn-retake').classList.remove('d-none');
+        // Show preview immediately to "freeze" the frame
+        preview.src = snapshotData;
+        vid.classList.add('d-none');
+        preview.classList.remove('d-none');
 
-            status.innerText = "Photo Captured & Verified!";
-            status.className = "text-success fw-bold small mt-1";
+        // 3. Background Face Detection
+        try {
+            const det = await faceapi.detectSingleFace(canvas).withFaceLandmarks().withFaceDescriptor();
 
-            app.stopRegCamera();
+            if (det) {
+                app.biometricDescriptor = Array.from(det.descriptor);
+                app.currentPhoto = snapshotData;
 
-        } else {
-            status.innerText = "No Face Detected. Try Again.";
+                btn.classList.add('d-none');
+                document.getElementById('btn-retake').classList.remove('d-none');
+
+                status.innerText = "Face Verified Successfully!";
+                status.className = "text-success fw-bold small mt-1";
+
+                app.stopRegCamera();
+            } else {
+                // Detection failed - revert UI
+                status.innerText = "Detection Failed! No face found in snapshot.";
+                status.className = "text-danger fw-bold small mt-1";
+
+                // Show retake button since we've already "captured" a failed frame
+                btn.classList.add('d-none');
+                document.getElementById('btn-retake').classList.remove('d-none');
+            }
+        } catch (err) {
+            console.error("Capture Error:", err);
+            status.innerText = "Error during analysis.";
             status.className = "text-danger fw-bold small mt-1";
+        } finally {
+            btn.disabled = false;
+            btn.innerHTML = '<i class="fas fa-camera"></i> Capture Face';
         }
     },
 
