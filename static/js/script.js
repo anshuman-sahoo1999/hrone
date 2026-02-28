@@ -339,89 +339,250 @@ const app = {
     },
 
     loadAdvancedReportStats: async () => {
+        const type = document.getElementById('adv-report-type').value;
         const grain = document.getElementById('adv-report-grain').value;
         const start = document.getElementById('adv-start-date').value;
         const end = document.getElementById('adv-end-date').value;
         const container = document.getElementById('adv-report-content');
 
         if (!start) return alert("Please select a start date.");
+        container.innerHTML = '<div class="text-center p-5"><div class="spinner-border text-primary"></div><p class="mt-2">Generating Report...</p></div>';
 
-        container.innerHTML = '<div class="spinner-border text-primary"></div><p>Calculating Report...</p>';
+        let startDate = new Date(start);
+        let endDate = end ? new Date(end) : new Date(start);
 
-        let endDate = end || start;
         if (grain === 'weekly') {
-            const d = new Date(start); d.setDate(d.getDate() + 7);
-            endDate = d.toISOString().split('T')[0];
+            endDate = new Date(startDate);
+            endDate.setDate(startDate.getDate() + 6);
         } else if (grain === 'monthly') {
-            const d = new Date(start); d.setMonth(d.getMonth() + 1);
-            endDate = d.toISOString().split('T')[0];
+            startDate = new Date(startDate.getFullYear(), startDate.getMonth(), 1);
+            endDate = new Date(startDate.getFullYear(), startDate.getMonth() + 1, 0);
+        } else if (grain === 'quarterly') {
+            const q = Math.floor(startDate.getMonth() / 3);
+            startDate = new Date(startDate.getFullYear(), q * 3, 1);
+            endDate = new Date(startDate.getFullYear(), (q + 1) * 3, 0);
         } else if (grain === 'yearly') {
-            const d = new Date(start); d.setFullYear(d.getFullYear() + 1);
-            endDate = d.toISOString().split('T')[0];
+            startDate = new Date(startDate.getFullYear(), 0, 1);
+            endDate = new Date(startDate.getFullYear(), 11, 31);
         }
 
+        const startStr = startDate.toISOString().split('T')[0];
+        const endStr = endDate.toISOString().split('T')[0];
+
+        if (type === 'matrix') {
+            return app.loadMatrixReport(startStr, endStr);
+        }
+
+        // --- Original Summary logic ---
         const { data: logs } = await db.from('attendance').select('*');
         const { data: emps } = await db.from('employees').select('*');
-
         if (!logs || !emps) return container.innerHTML = "No data available.";
 
-        const filteredLogs = logs.filter(l => l.date >= start && l.date <= endDate);
+        const filteredLogs = logs.filter(l => l.date >= startStr && l.date <= endStr);
 
         container.innerHTML = `
             <div class="row g-3">
                 <div class="col-md-4">
-                    <div class="card bg-primary text-white p-3">
-                        <h3>${filteredLogs.length}</h3>
-                        <small>Total Attendances</small>
+                    <div class="card bg-primary text-white p-3 border-0 shadow-sm">
+                        <h3 class="fw-bold">${filteredLogs.length}</h3>
+                        <small class="opacity-75">Total Attendances</small>
                     </div>
                 </div>
                 <div class="col-md-4">
-                    <div class="card bg-success text-white p-3">
-                        <h3>${[...new Set(filteredLogs.map(l => l.emp_id))].length}</h3>
-                        <small>Unique Staff Present</small>
+                    <div class="card bg-success text-white p-3 border-0 shadow-sm">
+                        <h3 class="fw-bold">${[...new Set(filteredLogs.map(l => l.emp_id))].length}</h3>
+                        <small class="opacity-75">Unique Staff Present</small>
                     </div>
                 </div>
                 <div class="col-md-4">
-                    <div class="card bg-info text-white p-3">
-                        <h3>${grain.toUpperCase()}</h3>
-                        <small>Report Frequency</small>
+                    <div class="card bg-info text-white p-3 border-0 shadow-sm">
+                        <h3 class="fw-bold">${grain.toUpperCase()}</h3>
+                        <small class="opacity-75">Report Frequency</small>
                     </div>
                 </div>
             </div>
-            <div class="mt-4 table-responsive">
-                <table class="table table-sm table-bordered">
-                    <thead class="table-dark">
-                        <tr><th>Staff</th><th>ID</th><th>Days Present</th></tr>
+            <div class="mt-4 table-responsive bg-white p-3 rounded shadow-sm">
+                <table class="table table-sm table-hover align-middle">
+                    <thead class="table-light">
+                        <tr><th>Staff</th><th>ID</th><th>Unit</th><th>Days Present</th></tr>
                     </thead>
                     <tbody>
-                        ${emps.slice(0, 10).map(e => {
+                        ${emps.slice(0, 20).map(e => {
             const count = filteredLogs.filter(l => l.emp_id == e.id).length;
-            return `<tr><td>${e.name}</td><td>${e.id}</td><td>${count}</td></tr>`;
+            return `<tr><td><div class="fw-bold">${e.name}</div><div class="small text-muted">${e.designation || '-'}</div></td><td><code>${e.id}</code></td><td>${e.unit || '-'}</td><td><span class="badge bg-primary">${count}</span></td></tr>`;
         }).join('')}
                     </tbody>
                 </table>
-                <small class="text-muted">Showing top 10 (Export for full list)</small>
+                <p class="small text-muted text-center mt-3">Preview showing top 20 employees. Use <b>Export Excel</b> for full details.</p>
             </div>
         `;
     },
 
+    loadMatrixReport: async (startStr, endStr) => {
+        const container = document.getElementById('adv-report-content');
+        const { data: emps } = await db.from('employees').select('*');
+        const { data: logs } = await db.from('attendance').select('*');
+        const { data: leaves } = await db.from('leave_master').select('*');
+        const { data: holidays } = await db.from('holiday_master').select('*');
+
+        if (!emps) return container.innerHTML = "No staff found.";
+
+        // Generate date list
+        const days = [];
+        let curr = new Date(startStr);
+        const end = new Date(endStr);
+        while (curr <= end) {
+            days.push(new Date(curr).toISOString().split('T')[0]);
+            curr.setDate(curr.getDate() + 1);
+        }
+
+        let html = `
+            <div class="matrix-container bg-white p-3 rounded shadow-sm table-responsive">
+                <style>
+                    .matrix-table { font-size: 0.8rem; border-collapse: collapse; width: 100%; }
+                    .matrix-table th, .matrix-table td { border: 1px solid #dee2e6; padding: 4px; text-align: center; min-width: 30px; }
+                    .matrix-table .emp-name { text-align: left; min-width: 150px; position: sticky; left: 0; background: #f8f9fa; z-index: 2; font-weight: bold; }
+                    .matrix-table .status-P { background-color: #d4edda; color: #155724; font-weight: bold; }
+                    .matrix-table .status-A { background-color: #f8d7da; color: #721c24; }
+                    .matrix-table .status-L { background-color: #cee3ff; color: #004085; font-weight: bold; }
+                    .matrix-table .status-H { background-color: #fff3cd; color: #856404; font-weight: bold; }
+                    .matrix-header-main { background: #6f42c1; color: white; }
+                    .matrix-header-days { background: #e9ecef; font-weight: bold; }
+                </style>
+                <div class="d-flex justify-content-between align-items-center mb-3">
+                    <h5 class="fw-bold mb-0">Matrix Attendance: ${startStr} to ${endStr}</h5>
+                    <div class="badge bg-secondary">Total Days: ${days.length}</div>
+                </div>
+                <table class="matrix-table table-hover">
+                    <thead>
+                        <tr class="matrix-header-days">
+                            <th class="emp-name" rowspan="2">Employee Name</th>
+                            <th colspan="${days.length}">Attendance Days</th>
+                            <th rowspan="2">Pres.</th>
+                            <th rowspan="2">Abs.</th>
+                        </tr>
+                        <tr class="matrix-header-days">
+                            ${days.map(d => `<th>${new Date(d).getDate()}</th>`).join('')}
+                        </tr>
+                    </thead>
+                    <tbody>`;
+
+        let totalEmployees = emps.length;
+        let totalPresentCount = 0;
+        let totalAbsentCount = 0;
+
+        emps.forEach(emp => {
+            let presentCount = 0;
+            let absentCount = 0;
+            html += `<tr><td class="emp-name">${emp.name}</td>`;
+
+            days.forEach(day => {
+                const attended = logs ? logs.find(l => l.emp_id === emp.id && l.date === day) : null;
+                const onLeave = leaves ? leaves.find(l => l.emp_id === emp.id && day >= l.start_date && day <= l.end_date) : null;
+                const isHoliday = holidays ? holidays.find(h => h.date === day) : null;
+
+                let code = 'A';
+                let style = 'status-A';
+
+                if (attended) {
+                    code = 'P'; style = 'status-P'; presentCount++;
+                } else if (onLeave) {
+                    code = 'L'; style = 'status-L';
+                } else if (isHoliday) {
+                    code = 'H'; style = 'status-H';
+                } else {
+                    absentCount++;
+                }
+
+                html += `<td class="${style}">${code}</td>`;
+            });
+
+            totalPresentCount += presentCount;
+            totalAbsentCount += absentCount;
+            html += `<td class="fw-bold text-success">${presentCount}</td><td class="fw-bold text-danger">${absentCount}</td></tr>`;
+        });
+
+        html += `
+                    </tbody>
+                </table>
+                <div class="row g-3 mt-4">
+                    <div class="col-md-4">
+                        <div class="card p-2 border-0 bg-light">
+                            <small class="text-muted d-block">Total Employees</small>
+                            <span class="h5 fw-bold mb-0 text-dark">${totalEmployees}</span>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="card p-2 border-0 bg-light">
+                            <small class="text-muted d-block">Total Present Days</small>
+                            <span class="h5 fw-bold mb-0 text-success">${totalPresentCount}</span>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="card p-2 border-0 bg-light">
+                            <small class="text-muted d-block">Total Absent Days</small>
+                            <span class="h5 fw-bold mb-0 text-danger">${totalAbsentCount}</span>
+                        </div>
+                    </div>
+                </div>
+                <div class="mt-4 p-3 bg-light rounded border">
+                    <h6 class="fw-bold text-success mb-2"><i class="fas fa-list-check me-2"></i>Summary of Attendance</h6>
+                    <div class="row g-3">
+                        <div class="col-6 col-md-4">
+                            <small class="text-muted d-block">Total No. of Employees</small>
+                            <span class="fw-bold">${totalEmployees}</span>
+                        </div>
+                        <div class="col-6 col-md-4">
+                            <small class="text-muted d-block">Total No. Employee Present (Total Days)</small>
+                            <span class="fw-bold text-success">${totalPresentCount}</span>
+                        </div>
+                        <div class="col-6 col-md-4">
+                            <small class="text-muted d-block">Total No. Employee Absent (Total Days)</small>
+                            <span class="fw-bold text-danger">${totalAbsentCount}</span>
+                        </div>
+                    </div>
+                </div>
+            </div>`;
+        container.innerHTML = html;
+    },
+
     exportFullExcelReport: async () => {
+        const type = document.getElementById('adv-report-type').value;
         const grain = document.getElementById('adv-report-grain').value;
         const start = document.getElementById('adv-start-date').value;
         const end = document.getElementById('adv-end-date').value;
 
         if (!start) return alert("Select start date");
 
-        let endDate = end || start;
-        // ... (Grain date logic same as above)
-        if (grain === 'weekly') { const d = new Date(start); d.setDate(d.getDate() + 7); endDate = d.toISOString().split('T')[0]; }
-        else if (grain === 'monthly') { const d = new Date(start); d.setMonth(d.getMonth() + 1); endDate = d.toISOString().split('T')[0]; }
-        else if (grain === 'yearly') { const d = new Date(start); d.setFullYear(d.getFullYear() + 1); endDate = d.toISOString().split('T')[0]; }
+        let startDate = new Date(start);
+        let endDate = end ? new Date(end) : new Date(start);
+
+        if (grain === 'weekly') {
+            endDate = new Date(startDate);
+            endDate.setDate(startDate.getDate() + 6);
+        } else if (grain === 'monthly') {
+            startDate = new Date(startDate.getFullYear(), startDate.getMonth(), 1);
+            endDate = new Date(startDate.getFullYear(), startDate.getMonth() + 1, 0);
+        } else if (grain === 'quarterly') {
+            const q = Math.floor(startDate.getMonth() / 3);
+            startDate = new Date(startDate.getFullYear(), q * 3, 1);
+            endDate = new Date(startDate.getFullYear(), (q + 1) * 3, 0);
+        } else if (grain === 'yearly') {
+            startDate = new Date(startDate.getFullYear(), 0, 1);
+            endDate = new Date(startDate.getFullYear(), 11, 31);
+        }
+
+        const startStr = startDate.toISOString().split('T')[0];
+        const endStr = endDate.toISOString().split('T')[0];
+
+        if (type === 'matrix') {
+            return app.exportMatrixExcel(startStr, endStr);
+        }
 
         const { data: logs } = await db.from('attendance').select('*');
         const { data: emps } = await db.from('employees').select('*');
 
-        const filteredLogs = logs.filter(l => l.date >= start && l.date <= endDate);
+        const filteredLogs = logs.filter(l => l.date >= startStr && l.date <= endStr);
 
         const report = emps.map(emp => {
             const eLogs = filteredLogs.filter(l => l.emp_id === emp.id);
@@ -444,7 +605,70 @@ const app = {
         const ws = XLSX.utils.json_to_sheet(report);
         const wb = XLSX.utils.book_new();
         XLSX.utils.book_append_sheet(wb, ws, "Master Report");
-        XLSX.writeFile(wb, `HROne_Report_${grain}_${start}.xlsx`);
+        XLSX.writeFile(wb, `HROne_Report_${grain}_${startStr}.xlsx`);
+    },
+
+    exportMatrixExcel: async (startStr, endStr) => {
+        const { data: emps } = await db.from('employees').select('*');
+        const { data: logs } = await db.from('attendance').select('*');
+        const { data: leaves } = await db.from('leave_master').select('*');
+        const { data: holidays } = await db.from('holiday_master').select('*');
+
+        if (!emps) return alert("No staff found to export.");
+
+        const days = [];
+        let curr = new Date(startStr);
+        const end = new Date(endStr);
+        while (curr <= end) { days.push(new Date(curr).toISOString().split('T')[0]); curr.setDate(curr.getDate() + 1); }
+
+        const rows = [];
+        // Header Row 1: Report Name
+        rows.push([`HR-SMART ATTENDANCE REPORT (${startStr} to ${endStr})`]);
+        // Header Row 2: Header Labels
+        const headerLabels = ['Sl. No', 'Name of the Employee', 'No. Days Present', 'No. Days Absent'];
+        days.forEach(d => headerLabels.push(new Date(d).getDate()));
+        rows.push(headerLabels);
+
+        let totalPresentAll = 0;
+        let totalAbsentAll = 0;
+
+        emps.forEach((emp, index) => {
+            let pCount = 0;
+            let aCount = 0;
+            const empRow = [index + 1, emp.name, 0, 0]; // Placeholder for sums
+
+            days.forEach(day => {
+                const attended = logs ? logs.find(l => l.emp_id === emp.id && l.date === day) : null;
+                const onLeave = leaves ? leaves.find(l => l.emp_id === emp.id && day >= l.start_date && day <= l.end_date) : null;
+                const isHoliday = holidays ? holidays.find(h => h.date === day) : null;
+
+                if (attended) { empRow.push('P'); pCount++; }
+                else if (onLeave) { empRow.push('L'); }
+                else if (isHoliday) { empRow.push('H'); }
+                else { empRow.push('A'); aCount++; }
+            });
+
+            empRow[2] = pCount;
+            empRow[3] = aCount;
+            totalPresentAll += pCount;
+            totalAbsentAll += aCount;
+            rows.push(empRow);
+        });
+
+        // Summary Row
+        const summaryRow = ['Total', '', totalPresentAll, totalAbsentAll];
+        rows.push(summaryRow);
+        rows.push(['% of Attendance', '', ((totalPresentAll / (totalPresentAll + totalAbsentAll || 1)) * 100).toFixed(2) + '%']);
+
+        const ws = XLSX.utils.aoa_to_sheet(rows);
+
+        // Basic Formatting (SheetJS community is limited, but we can set column widths)
+        ws['!cols'] = [{ wch: 6 }, { wch: 30 }, { wch: 15 }, { wch: 15 }];
+        days.forEach(() => ws['!cols'].push({ wch: 4 }));
+
+        const wb = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(wb, ws, "Attendance Matrix");
+        XLSX.writeFile(wb, `Matrix_Report_${startStr}_to_${endStr}.xlsx`);
     },
     // ---------------------------------------------
 
@@ -1623,12 +1847,16 @@ const app = {
                     try {
                         descriptor = JSON.parse(descriptor);
                     } catch (err) {
-                        // Fallback for comma-separated or other formats if needed
                         descriptor = descriptor.split(',').map(Number);
                     }
                 }
-                return new faceapi.LabeledFaceDescriptors(e.name, [new Float32Array(descriptor)]);
-            });
+                // Ensure it is an array or typed array of length 128
+                if (descriptor && descriptor.length === 128) {
+                    return new faceapi.LabeledFaceDescriptors(e.name, [new Float32Array(descriptor)]);
+                }
+                console.warn(`Skipping invalid descriptor for ${e.name}: expected 128 elements, got ${descriptor ? descriptor.length : 0}`);
+                return null;
+            }).filter(d => d !== null);
         }
     },
 
