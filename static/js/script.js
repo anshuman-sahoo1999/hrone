@@ -468,13 +468,19 @@ const app = {
                     /* Sticky Left: Employee Name */
                     .matrix-table .emp-name { 
                         text-align: left; 
-                        min-width: 150px; 
+                        width: 180px; 
+                        min-width: 180px;
+                        max-width: 180px;
                         position: sticky; 
                         left: 0; 
                         background: #ffffff !important; 
-                        z-index: 10; 
+                        z-index: 20; 
                         font-weight: bold;
                         border-right: 2px solid #6f42c1 !important;
+                        box-shadow: 2px 0 5px rgba(0,0,0,0.1);
+                        overflow: hidden;
+                        text-overflow: ellipsis;
+                        white-space: nowrap;
                     }
                     
                     /* Sticky Right: Summary Columns */
@@ -482,22 +488,24 @@ const app = {
                         position: sticky;
                         right: 0;
                         background: #f8f9fa !important;
-                        z-index: 9;
+                        z-index: 15;
                         border-left: 2px solid #6f42c1 !important;
+                        box-shadow: -2px 0 5px rgba(0,0,0,0.1);
                     }
                     .matrix-table .sticky-right-2 {
                         position: sticky;
                         right: 38px; /* Offset for the very last column */
                         background: #f8f9fa !important;
-                        z-index: 9;
+                        z-index: 15;
                     }
 
                     .matrix-table .status-P { background-color: #d4edda !important; color: #155724; font-weight: bold; }
                     .matrix-table .status-A { background-color: #f8d7da !important; color: #721c24; }
                     .matrix-table .status-L { background-color: #cee3ff !important; color: #004085; font-weight: bold; }
                     .matrix-table .status-H { background-color: #fff3cd !important; color: #856404; font-weight: bold; }
-                    .matrix-header-main { background: #6f42c1; color: white; position: sticky; top: 0; z-index: 11; }
-                    .matrix-header-days { background: #e9ecef; font-weight: bold; position: sticky; top: 0; z-index: 11; }
+                    .matrix-header-main { background: #6f42c1; color: white; position: sticky; top: 0; z-index: 30; }
+                    .matrix-header-days { background: #e9ecef; font-weight: bold; position: sticky; top: 0; z-index: 21; }
+                    .matrix-header-days .emp-name { z-index: 35; top: 0; }
                 </style>
                 <div class="d-flex justify-content-between align-items-center mb-3">
                     <h5 class="fw-bold mb-0">Matrix Attendance: ${startStr} to ${endStr}</h5>
