@@ -622,12 +622,21 @@ const app = {
         while (curr <= end) { days.push(new Date(curr).toISOString().split('T')[0]); curr.setDate(curr.getDate() + 1); }
 
         const rows = [];
-        // Header Row 1: Report Name
-        rows.push([`HR-SMART ATTENDANCE REPORT (${startStr} to ${endStr})`]);
-        // Header Row 2: Header Labels
-        const headerLabels = ['Sl. No', 'Name of the Employee', 'No. Days Present', 'No. Days Absent'];
-        days.forEach(d => headerLabels.push(new Date(d).getDate()));
-        rows.push(headerLabels);
+        const monthName = new Date(startStr).toLocaleDateString('en-US', { month: 'long', year: 'numeric' }).toUpperCase();
+
+        // Row 1 (Index 0): Title & Month
+        const row1 = ['HR-SMART ATTENDANCE REPORT', '', '', ''];
+        row1.push(monthName);
+        rows.push(row1);
+
+        // Row 2 (Index 1): Headers Top
+        const row2 = ['Sl. No', 'Name of the Employee', 'Attendance Status', ''];
+        days.forEach(d => row2.push(new Date(d).getDate()));
+        rows.push(row2);
+
+        // Row 3 (Index 2): Headers Bottom
+        const row3 = ['', '', 'No. of Days Present', 'No. of Days Absent'];
+        rows.push(row3);
 
         let totalPresentAll = 0;
         let totalAbsentAll = 0;
@@ -635,7 +644,7 @@ const app = {
         emps.forEach((emp, index) => {
             let pCount = 0;
             let aCount = 0;
-            const empRow = [index + 1, emp.name, 0, 0]; // Placeholder for sums
+            const empRow = [index + 1, emp.name, 0, 0];
 
             days.forEach(day => {
                 const attended = logs ? logs.find(l => l.emp_id === emp.id && l.date === day) : null;
@@ -655,15 +664,50 @@ const app = {
             rows.push(empRow);
         });
 
-        // Summary Row
-        const summaryRow = ['Total', '', totalPresentAll, totalAbsentAll];
-        rows.push(summaryRow);
+        // Totals Rows
+        rows.push(['Total', '', totalPresentAll, totalAbsentAll]);
         rows.push(['% of Attendance', '', ((totalPresentAll / (totalPresentAll + totalAbsentAll || 1)) * 100).toFixed(2) + '%']);
+
+        // Summary of Attendance Box (Placed at bottom-right area)
+        const summaryStartCol = Math.max(4, 4 + days.length - 10);
+        const summaryRows = [
+            ['Summary of Attendance'],
+            ['Total No. of Employees', emps.length],
+            ['Total No. of Employee Present', totalPresentAll],
+            ['Total No. of Employee Absent', totalAbsentAll]
+        ];
+
+        // Append summary rows starting from current row, but shifted right
+        summaryRows.forEach((sRow, idx) => {
+            const fullRow = Array(summaryStartCol).fill('');
+            rows.push(fullRow.concat(sRow));
+        });
 
         const ws = XLSX.utils.aoa_to_sheet(rows);
 
-        // Basic Formatting (SheetJS community is limited, but we can set column widths)
-        ws['!cols'] = [{ wch: 6 }, { wch: 30 }, { wch: 15 }, { wch: 15 }];
+        // --- MERGES ---
+        ws['!merges'] = [
+            // Row 1 Title
+            { s: { r: 0, c: 0 }, e: { r: 0, c: 3 } },
+            // Row 1 Month
+            { s: { r: 0, c: 4 }, e: { r: 0, c: 4 + days.length - 1 } },
+            // Sl No Vertical
+            { s: { r: 1, c: 0 }, e: { r: 2, c: 0 } },
+            // Name Vertical
+            { s: { r: 1, c: 1 }, e: { r: 2, c: 1 } },
+            // Attendance Status Horizontal
+            { s: { r: 1, c: 2 }, e: { r: 1, c: 3 } },
+            // Summary Header Horizontal
+            { s: { r: rows.length - 4, c: summaryStartCol }, e: { r: rows.length - 4, c: summaryStartCol + 1 } }
+        ];
+
+        // Column Widths
+        ws['!cols'] = [
+            { wch: 6 },  // SL
+            { wch: 30 }, // Name
+            { wch: 20 }, // Present
+            { wch: 20 }  // Absent
+        ];
         days.forEach(() => ws['!cols'].push({ wch: 4 }));
 
         const wb = XLSX.utils.book_new();
