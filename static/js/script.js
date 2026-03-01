@@ -200,6 +200,14 @@ const app = {
         await app.checkSystemStatus();
         app.attachListeners();
 
+        // Restore session if exists
+        const savedRole = localStorage.getItem('hrone_user_role');
+        if (savedRole) {
+            console.log("Restoring session:", savedRole);
+            app.userRole = savedRole;
+            app.loadDashboard();
+        }
+
         // Populate employee dropdown for reports
         app.populateReportEmployees();
 
@@ -269,6 +277,7 @@ const app = {
         // 1. IT Admin Bypass
         if (CREDENTIALS[user] && CREDENTIALS[user].role === 'it_admin' && CREDENTIALS[user].pass === pass) {
             app.userRole = 'it_admin';
+            localStorage.setItem('hrone_user_role', 'it_admin');
             app.loadDashboard();
             return;
         }
@@ -287,6 +296,7 @@ const app = {
         // 4. Client Login
         if (CREDENTIALS[user] && CREDENTIALS[user].pass === pass) {
             app.userRole = CREDENTIALS[user].role;
+            localStorage.setItem('hrone_user_role', app.userRole);
             app.loadDashboard();
         } else {
             alert("Invalid Credentials");
@@ -309,7 +319,10 @@ const app = {
         }
     },
 
-    logout: () => location.reload(),
+    logout: () => {
+        localStorage.removeItem('hrone_user_role');
+        location.reload();
+    },
 
     // ========================================================
     // 4. REPORTING (PDF & EXCEL - PROFESSIONAL GRADE)
