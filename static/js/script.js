@@ -28,14 +28,14 @@ class TursoDB {
             const data = result.rows.map(row => {
                 let obj = {};
                 row.forEach((val, i) => {
-                    // Turso v2 returns values as objects like {type: "text", value: "..."}
-                    // Extract just the value, or null if it's a null type
+                    // Turso v2 returns values as objects like {type: "text", value: "..."} or {type: "null"}
                     if (val && typeof val === 'object') {
-                        // Turso v2 returns values as objects like {type: "text", value: "..."}
-                        if ('value' in val) {
-                            obj[cols[i]] = (val.type === 'null') ? null : val.value;
+                        if (val.type === 'null') {
+                            obj[cols[i]] = null;
+                        } else if ('value' in val) {
+                            obj[cols[i]] = val.value;
                         } else {
-                            // Fallback if it's some other object
+                            // Fallback for unexpected object structure
                             obj[cols[i]] = JSON.stringify(val);
                         }
                     } else {
@@ -567,19 +567,19 @@ const app = {
                     <div class="col-md-4">
                         <div class="card p-2 border-0 bg-light">
                             <small class="text-muted d-block">Total Employees</small>
-                            <span class="h5 fw-bold mb-0 text-dark">${totalEmployees}</span>
+                            <span class="h5 fw-bold mb-0 text-dark">${isNaN(totalEmployees) ? 0 : totalEmployees}</span>
                         </div>
                     </div>
                     <div class="col-md-4">
                         <div class="card p-2 border-0 bg-light">
                             <small class="text-muted d-block">Total Present Days</small>
-                            <span class="h5 fw-bold mb-0 text-success">${totalPresentCount}</span>
+                            <span class="h5 fw-bold mb-0 text-success">${isNaN(totalPresentCount) ? 0 : totalPresentCount}</span>
                         </div>
                     </div>
                     <div class="col-md-4">
                         <div class="card p-2 border-0 bg-light">
                             <small class="text-muted d-block">Total Absent Days</small>
-                            <span class="h5 fw-bold mb-0 text-danger">${totalAbsentCount}</span>
+                            <span class="h5 fw-bold mb-0 text-danger">${isNaN(totalAbsentCount) ? 0 : totalAbsentCount}</span>
                         </div>
                     </div>
                 </div>
@@ -588,15 +588,15 @@ const app = {
                     <div class="row g-3">
                         <div class="col-6 col-md-4">
                             <small class="text-muted d-block">Total No. of Employees</small>
-                            <span class="fw-bold">${totalEmployees}</span>
+                            <span class="fw-bold">${isNaN(totalEmployees) ? 0 : totalEmployees}</span>
                         </div>
                         <div class="col-6 col-md-4">
                             <small class="text-muted d-block">Total No. Employee Present (Total Days)</small>
-                            <span class="fw-bold text-success">${totalPresentCount}</span>
+                            <span class="fw-bold text-success">${isNaN(totalPresentCount) ? 0 : totalPresentCount}</span>
                         </div>
                         <div class="col-6 col-md-4">
                             <small class="text-muted d-block">Total No. Employee Absent (Total Days)</small>
-                            <span class="fw-bold text-danger">${totalAbsentCount}</span>
+                            <span class="fw-bold text-danger">${isNaN(totalAbsentCount) ? 0 : totalAbsentCount}</span>
                         </div>
                     </div>
                 </div>
@@ -1039,13 +1039,12 @@ const app = {
         app.charts.efficiency.render();
     },
 
-    // --- LUNCH UTILIZATION (RED ALERT LOGIC) ---
     renderLunchTable: (attData) => {
         const tbody = document.getElementById('lunch-log-body');
         if (!tbody) return;
         tbody.innerHTML = '';
 
-        const lunchData = attData.filter(row => row.lunch_out);
+        const lunchData = attData.filter(row => row && row.lunch_out && row.lunch_out !== 'null');
 
         if (lunchData.length === 0) {
             tbody.innerHTML = '<tr><td colspan="5" class="text-muted py-3">No lunch records yet.</td></tr>';
@@ -1057,35 +1056,48 @@ const app = {
             let statusBadge = '<span class="badge badge-lunch-active">Ongoing</span>';
             let durationClass = "fw-bold text-primary";
 
-            if (row.lunch_out && row.lunch_in) {
-                const today = new Date().toISOString().split('T')[0];
-                const start = new Date(`${today}T${row.lunch_out}`);
-                const end = new Date(`${today}T${row.lunch_in}`);
+            const lOut = row.lunch_out;
+            const lIn = row.lunch_in;
 
-                const diffMs = end - start;
-                const diffMins = Math.floor(diffMs / 60000);
-                const hrs = Math.floor(diffMins / 60);
-                const mins = diffMins % 60;
+            if (lOut && lIn && lOut !== 'null' && lIn !== 'null') {
+                try {
+                    const today = new Date().toISOString().split('T')[0];
+                    const start = new Date(`${today}T${lOut}`);
+                    const end = new Date(`${today}T${lIn}`);
 
-                duration = hrs > 0 ? `${hrs}h ${mins}m` : `${mins}m`;
+                    if (!isNaN(start) && !isNaN(end)) {
+                        const diffMs = end - start;
+                        const diffMins = Math.floor(diffMs / 60000);
+                        if (!isNaN(diffMins)) {
+                            const hrs = Math.floor(diffMins / 60);
+                            const mins = diffMins % 60;
+                            duration = hrs > 0 ? `${hrs}h ${mins}m` : `${mins}m`;
 
-                if (diffMins > 60) {
-                    statusBadge = `<span class="badge bg-danger text-white">Over Limit (>1hr)</span>`;
-                    durationClass = "fw-bold text-danger";
-                } else {
-                    statusBadge = `<span class="badge badge-lunch-done">Completed</span>`;
-                    durationClass = "fw-bold text-success";
+                            if (diffMins > 60) {
+                                statusBadge = `<span class="badge bg-danger text-white">Over Limit (>1hr)</span>`;
+                                durationClass = "fw-bold text-danger";
+                            } else {
+                                statusBadge = `<span class="badge badge-lunch-done">Completed</span>`;
+                                durationClass = "fw-bold text-success";
+                            }
+                        }
+                    }
+                } catch (e) {
+                    console.error("Lunch Calc Error:", e);
                 }
             }
+
+            const safeOut = (lOut && typeof lOut !== 'object') ? lOut : '--:--';
+            const safeIn = (lIn && typeof lIn !== 'object') ? lIn : '--:--';
 
             tbody.innerHTML += `
                 <tr>
                     <td class="text-start ps-4">
-                        <div class="fw-bold text-dark">${row.name}</div>
-                        <div class="small text-muted" style="font-size:0.75rem;">${row.emp_id}</div>
+                        <div class="fw-bold text-dark">${row.name || 'Unknown'}</div>
+                        <div class="small text-muted" style="font-size:0.75rem;">${row.emp_id || '-'}</div>
                     </td>
-                    <td class="text-danger fw-bold">${row.lunch_out}</td>
-                    <td class="text-success fw-bold">${row.lunch_in || '--:--'}</td>
+                    <td class="text-danger fw-bold">${safeOut}</td>
+                    <td class="text-success fw-bold">${safeIn}</td>
                     <td class="${durationClass}">${duration}</td>
                     <td>${statusBadge}</td>
                 </tr>`;
@@ -1154,28 +1166,37 @@ const app = {
                 const statusBadge = onLeave ? '<span class="badge bg-info">Worked on Leave</span>' : `<span class='badge bg-${row.check_out ? 'success' : 'warning'}'>${row.check_out ? 'Done' : 'Active'}</span>`;
 
                 let duration = "--";
-                if (row.check_in && row.check_out) {
-                    const s = new Date(`1970-01-01T${row.check_in}`);
-                    const e = new Date(`1970-01-01T${row.check_out}`);
-                    const hours = (e - s) / 36e5;
-                    duration = hours.toFixed(2) + " hrs";
-                    totalHours += hours;
-                    closedShifts++;
+                const cIn = row.check_in;
+                const cOut = row.check_out;
+
+                if (cIn && cOut && cIn !== 'null' && cOut !== 'null') {
+                    const s = new Date(`1970-01-01T${cIn}`);
+                    const e = new Date(`1970-01-01T${cOut}`);
+                    if (!isNaN(s) && !isNaN(e)) {
+                        const hours = (e - s) / 36e5;
+                        if (!isNaN(hours)) {
+                            duration = hours.toFixed(2) + " hrs";
+                            totalHours += hours;
+                            closedShifts++;
+                        }
+                    }
                 }
 
                 const taskBtn = row.work_log ? 'btn-success' : 'btn-outline-primary';
                 const taskTxt = row.work_log ? 'Edit' : 'Add';
                 const safeLog = (row.work_log || '').replace(/'/g, "\\'");
+                const safeInDisp = (cIn && typeof cIn !== 'object') ? cIn : '--:--';
+                const safeOutDisp = (cOut && typeof cOut !== 'object') ? cOut : '--:--';
 
                 tbody.innerHTML += `
                     <tr>
                         <td>${statusBadge}</td>
                         <td>
-                            <div class="fw-bold">${row.name}</div>
+                            <div class="fw-bold">${row.name || 'Unknown'}</div>
                             <div class="small text-muted">${desig}</div>
                         </td>
                         <td>${row.unit || '-'}</td>
-                        <td><small>In: ${row.check_in}<br>Out: ${row.check_out || '-'}</small></td>
+                        <td><small>In: ${safeInDisp}<br>Out: ${safeOutDisp}</small></td>
                         <td><span class="badge bg-secondary">${shift}</span></td>
                         <td><button class="btn btn-sm ${taskBtn}" onclick="app.openWorkLog('${row.id}', '${row.name}', '${safeLog}')">${taskTxt}</button></td>
                         <td><button class="btn btn-sm btn-outline-secondary" onclick="app.showPerformance('${row.emp_id}')"><i class="fas fa-chart-bar"></i></button></td>
@@ -1258,15 +1279,18 @@ const app = {
             const taskTxt = row.work_log ? 'Edit' : 'Add';
             const safeLog = (row.work_log || '').replace(/'/g, "\\'");
 
+            const safeInDisp = (row.check_in && typeof row.check_in !== 'object' && row.check_in !== 'null') ? row.check_in : '--:--';
+            const safeOutDisp = (row.check_out && typeof row.check_out !== 'object' && row.check_out !== 'null') ? row.check_out : '--:--';
+
             tbody.innerHTML += `
                 <tr>
                     <td><span class='badge bg-${row.check_out ? 'success' : 'warning'}'>${row.check_out ? 'Done' : 'Active'}</span></td>
                     <td>
-                        <div class="fw-bold">${row.name}</div>
+                        <div class="fw-bold">${row.name || 'Unknown'}</div>
                         <div class="small text-muted">${row.empDetails.designation}</div>
                     </td>
-                    <td>${row.unit}</td>
-                    <td><small>In: ${row.check_in}<br>Out: ${row.check_out || '-'}</small></td>
+                    <td>${row.unit || '-'}</td>
+                    <td><small>In: ${safeInDisp}<br>Out: ${safeOutDisp}</small></td>
                     <td><span class="badge bg-secondary">${row.empDetails.shift}</span></td>
                     <td><button class="btn btn-sm ${taskBtn}" onclick="app.openWorkLog('${row.id}', '${row.name}', '${safeLog}')">${taskTxt}</button></td>
                     <td><button class="btn btn-sm btn-outline-secondary" onclick="app.showPerformance('${row.emp_id}')"><i class="fas fa-chart-bar"></i></button></td>
