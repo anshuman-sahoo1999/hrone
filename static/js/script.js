@@ -1424,7 +1424,8 @@ const app = {
 
         // 3. Background Face Detection
         try {
-            const det = await faceapi.detectSingleFace(canvas).withFaceLandmarks().withFaceDescriptor();
+            // Use TinyFaceDetector for speed and to prevent "Page Unresponsive" hangs
+            const det = await faceapi.detectSingleFace(canvas, new faceapi.TinyFaceDetectorOptions()).withFaceLandmarks().withFaceDescriptor();
 
             if (det) {
                 app.biometricDescriptor = Array.from(det.descriptor);
