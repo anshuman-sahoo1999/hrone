@@ -460,69 +460,86 @@ const app = {
         }
 
         let html = `
-            <div class="matrix-container bg-white p-3 rounded shadow-sm table-responsive">
+            <div class="matrix-wrapper bg-white rounded shadow-sm overflow-hidden">
                 <style>
-                    .matrix-table { font-size: 0.8rem; border-collapse: separate; border-spacing: 0; width: 100%; }
-                    .matrix-table th, .matrix-table td { border: 1px solid #dee2e6; padding: 4px; text-align: center; min-width: 30px; background: white; }
+                    .matrix-container { overflow: auto; max-height: 75vh; position: relative; }
+                    .matrix-table { font-size: 0.8rem; border-collapse: separate; border-spacing: 0; width: 100%; table-layout: auto; }
+                    .matrix-table th, .matrix-table td { border: 1px solid #dee2e6; padding: 6px 4px; text-align: center; min-width: 35px; background: white; }
                     
-                    /* Sticky Left: Employee Name */
+                    /* STICKY HEADER */
+                    .matrix-table thead th { 
+                        position: sticky; 
+                        top: 0; 
+                        z-index: 10; 
+                        background: #f8f9fa !important; 
+                        border-bottom: 2px solid #6f42c1;
+                    }
+
+                    /* STICKY COLUMN (Employee Name) */
                     .matrix-table .emp-name { 
-                        text-align: left; 
-                        width: 180px; 
-                        min-width: 180px;
-                        max-width: 180px;
                         position: sticky; 
                         left: 0; 
-                        background: #ffffff !important; 
                         z-index: 20; 
+                        background: #ffffff !important; 
+                        text-align: left;
+                        width: 180px; min-width: 180px; max-width: 180px;
                         font-weight: bold;
                         border-right: 2px solid #6f42c1 !important;
                         box-shadow: 2px 0 5px rgba(0,0,0,0.1);
-                        overflow: hidden;
-                        text-overflow: ellipsis;
-                        white-space: nowrap;
+                        overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
                     }
-                    
-                    /* Sticky Right: Summary Columns */
-                    .matrix-table .sticky-right {
-                        position: sticky;
-                        right: 0;
-                        background: #f8f9fa !important;
-                        z-index: 15;
+
+                    /* TOP-LEFT CORNER (Both horizontal and vertical sticky) */
+                    .matrix-table thead th.emp-name { 
+                        top: 0; 
+                        left: 0; 
+                        z-index: 40; 
+                        background: #6f42c1 !important; 
+                        color: white !important; 
+                    }
+
+                    /* STICKY SUMMARY COLUMNS (Right side) */
+                    .matrix-table .sticky-right { 
+                        position: sticky; 
+                        right: 0; 
+                        z-index: 20; 
+                        background: #f8f9fa !important; 
                         border-left: 2px solid #6f42c1 !important;
                         box-shadow: -2px 0 5px rgba(0,0,0,0.1);
                     }
-                    .matrix-table .sticky-right-2 {
-                        position: sticky;
-                        right: 38px; /* Offset for the very last column */
-                        background: #f8f9fa !important;
-                        z-index: 15;
+                    .matrix-table .sticky-right-2 { 
+                        position: sticky; 
+                        right: 36px; 
+                        z-index: 20; 
+                        background: #f8f9fa !important; 
                     }
+                    
+                    .matrix-table thead th.sticky-right { z-index: 40; top: 0; right: 0; }
+                    .matrix-table thead th.sticky-right-2 { z-index: 40; top: 0; right: 36px; }
 
                     .matrix-table .status-P { background-color: #d4edda !important; color: #155724; font-weight: bold; }
                     .matrix-table .status-A { background-color: #f8d7da !important; color: #721c24; }
                     .matrix-table .status-L { background-color: #cee3ff !important; color: #004085; font-weight: bold; }
                     .matrix-table .status-H { background-color: #fff3cd !important; color: #856404; font-weight: bold; }
-                    .matrix-header-main { background: #6f42c1; color: white; position: sticky; top: 0; z-index: 30; }
-                    .matrix-header-days { background: #e9ecef; font-weight: bold; position: sticky; top: 0; z-index: 21; }
-                    .matrix-header-days .emp-name { z-index: 35; top: 0; }
+                    .matrix-title-bar { background: #6f42c1; color: white; padding: 12px 15px; border-bottom: 2px solid #5a32a3; }
                 </style>
-                <div class="d-flex justify-content-between align-items-center mb-3">
-                    <h5 class="fw-bold mb-0">Matrix Attendance: ${startStr} to ${endStr}</h5>
-                    <div class="badge bg-secondary">Total Days: ${days.length}</div>
+                <div class="matrix-title-bar d-flex justify-content-between align-items-center">
+                    <h5 class="fw-bold mb-0 text-white"><i class="fas fa-th me-2"></i>Attendance Grid: ${startStr} to ${endStr}</h5>
+                    <div class="badge bg-white text-dark">Total Days: ${days.length}</div>
                 </div>
-                <table class="matrix-table table-hover">
-                    <thead>
-                        <tr class="matrix-header-days">
-                            <th class="emp-name" rowspan="2">Employee Name</th>
-                            <th colspan="${days.length}">Attendance Days</th>
-                            <th class="sticky-right-2" rowspan="2">Pres.</th>
-                            <th class="sticky-right" rowspan="2">Abs.</th>
-                        </tr>
-                        <tr class="matrix-header-days">
-                            ${days.map(d => `<th>${new Date(d).getDate()}</th>`).join('')}
-                        </tr>
-                    </thead>
+                <div class="matrix-container">
+                    <table class="matrix-table table-hover">
+                        <thead>
+                            <tr>
+                                <th class="emp-name" rowspan="2">Employee Name</th>
+                                <th colspan="${days.length}" style="background: #6f42c1; color: white;">Attendance Days</th>
+                                <th class="sticky-right-2" rowspan="2">Pres.</th>
+                                <th class="sticky-right" rowspan="2">Abs.</th>
+                            </tr>
+                            <tr>
+                                ${days.map(d => `<th>${new Date(d).getDate()}</th>`).join('')}
+                            </tr>
+                        </thead>
                     <tbody>`;
 
         let totalEmployees = emps.length;
